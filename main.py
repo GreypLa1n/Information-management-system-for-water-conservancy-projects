@@ -5,11 +5,12 @@ import threading
 import time
 import os
 import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from dotenv import load_dotenv
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from plot_module import create_figure
 
 # 设定压力警戒值
 pressure_threshold = 1.8
@@ -178,13 +179,17 @@ def update_plot():
 # 测试邮件
 # send_email_alert("2025-03-05", 2.1)
 
-helloworld()
 # 创建主窗口
 root = tk.Tk()
 root.title("水利工程数据可视化与监控系统")
 root.geometry("1280x960")
 
-fig, ax1, ax2, ax3 = create_figure(root)
+# Matplotlib 图表
+fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize = (6, 8), dpi = 100)
+fig.tight_layout(pad = 3.0)
+canvas = FigureCanvasTkAgg(fig, master = root)
+canvas_widget = canvas.get_tk_widget()
+canvas_widget.pack(fill = tk.BOTH, expand = True)
 
 # 按钮：查看历史数据
 history_button = tk.Button(root, text = "查看历史数据", command = show_history, font = ("SimHei", 12))
