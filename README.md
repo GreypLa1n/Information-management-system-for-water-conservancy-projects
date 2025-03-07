@@ -1,1 +1,2 @@
-# Information-management-system-for-water-conservancy-projects
+# 水利工程的信息管理系统
+此项目通过爬取水利网上的水利信息并将其进行可视化处理，当可能出现警戒情况时发出警告
