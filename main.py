@@ -1,17 +1,15 @@
 import mysql.connector
 import tkinter as tk
-import tkinter.messagebox as messagebox
 from tkinter import ttk
-import matplotlib
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import threading
 import time
 import os
+import matplotlib
 from dotenv import load_dotenv
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from plot_module import create_figure
 
 # 设定压力警戒值
 pressure_threshold = 1.8
@@ -153,12 +151,14 @@ def update_plot():
                         alert_label.pack(padx = 50, pady = 50)
 
                         # 确认按钮
-                        def close_alert():
+                        def close_alert(timestamp, alert_window):
                             alert_window.destroy()
-                            if timestamps[i] in alerted_windows:
-                                del alerted_windows[timestamps[i]]
-                        confirm_button = tk.Button(alert_window, text = "确认", command = close_alert)
+                            if timestamps in alerted_windows:
+                                del alerted_windows[timestamps]
+                        confirm_button = tk.Button(alert_window, text = "确认", command = lambda: close_alert(timestamps[i], alert_window))
                         confirm_button.pack(pady = 10)
+
+                        alert_window.protocol("WM_DELETE_WINDOW", lambda : close_alert(timestamps, alert_window))
                         alerted_windows[timestamps[i]] = alert_window  # 存储弹窗对象
 
                         # 设置定时器，30秒后检查弹窗是否关闭
@@ -178,17 +178,13 @@ def update_plot():
 # 测试邮件
 # send_email_alert("2025-03-05", 2.1)
 
+helloworld()
 # 创建主窗口
 root = tk.Tk()
 root.title("水利工程数据可视化与监控系统")
 root.geometry("1280x960")
 
-# Matplotlib 图表
-fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize = (6, 8), dpi = 100)
-fig.tight_layout(pad = 3.0)
-canvas = FigureCanvasTkAgg(fig, master = root)
-canvas_widget = canvas.get_tk_widget()
-canvas_widget.pack(fill = tk.BOTH, expand = True)
+fig, ax1, ax2, ax3 = create_figure(root)
 
 # 按钮：查看历史数据
 history_button = tk.Button(root, text = "查看历史数据", command = show_history, font = ("SimHei", 12))
