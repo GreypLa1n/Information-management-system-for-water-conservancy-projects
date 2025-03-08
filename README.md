@@ -15,4 +15,5 @@
 
 本项目最终选择采用USGS Water Data数据集
 美国地址调查局（https://waterdata.usgs.gov/nwis）提供的全国水文数据，包括河流流量、地下水位、降雨量等
-下载数据集pip install hydrofunctions mysql-connector-python
+
+下载数据集pip install hydrofunctions
