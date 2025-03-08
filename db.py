@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+# @Time    : 2025/3/3 11:23
+# @Author  : Bruam1
+# @Email   : grey040612@gmail.com
+# @File    : db.py
+# @Software: Vscode
 import mysql.connector
 import random
 import time

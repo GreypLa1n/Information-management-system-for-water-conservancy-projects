@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+# @Time    : 2025/3/2 18:12
+# @Author  : Bruam1
+# @Email   : grey040612@gmail.com
+# @File    : main.py
+# @Software: Vscode
+import configparser
 import mysql.connector
 import tkinter as tk
 from tkinter import ttk
@@ -21,12 +28,15 @@ alerted_windows = {}  # 存储弹窗对象
 matplotlib.rcParams["font.sans-serif"] = ["SimHei"]
 matplotlib.rcParams["axes.unicode_minus"] = False
 
-# 电子邮件配置
-Email_sender = "772644274@qq.com"
-Email_password = "ijyryquvvfxfbcid"  # qq邮箱SMTP授权码
-Email_receiver = "1649157181@qq.com"  # 接受警告的邮箱
-SMTP_server = "smtp.qq.com"  # 邮箱SMTP服务器  Gmail："smtp.gmail.com" QQ："smtp.qq.com"
-SMTP_port = 587  # 邮箱服务器端口
+config = configparser.ConfigParser()
+config.read("./config.cfg", encoding = "UTF-8")  # 读取配置文件
+conf_email = config["Email_Setting"]
+
+Email_sender = conf_email['Email_sender']
+Email_password = conf_email['Email_password']  # 邮箱SMTP授权码
+Email_receiver = conf_email['Email_receiver']  # 接收邮箱
+SMTP_server = conf_email['SMTP_server']  # 邮箱SMTP服务器
+SMTP_port = int(conf_email['SMTP_port'])  # 邮箱服务器端口
 
 # 加载环境变量
 load_dotenv()
@@ -58,9 +68,9 @@ def send_email_alert(timestamp, pressure):
         server.sendmail(Email_sender, Email_receiver, msg.as_string())
         server.quit()
 
-        print("邮件已发送")
+        print("警告邮件已发送")
     except Exception as e:
-        print(f"邮件发送失败：{e}")
+        print(f"警告邮件发送失败：{e}")
 
 # 检测弹窗是否关闭，超时发送邮件
 def check_alert_window(timestamp, pressure):
@@ -177,7 +187,7 @@ def update_plot():
         time.sleep(2)  # 每 2 秒更新一次图表
 
 # 测试邮件
-# send_email_alert("2025-03-05", 2.1)
+send_email_alert("2025-03-05", 2.1)
 
 # 创建主窗口
 root = tk.Tk()
