@@ -59,7 +59,7 @@ def send_email_alert(timestamp, pressure):
         msg["From"] = Email_sender
         msg["To"] = Email_receiver
         msg["Subject"] = subject
-        msg.attach(MIMEText(body, "plain"))
+        msg.attach(MIMEText(body, "plain", "utf-8"))
 
         # 连接SMTP服务器并发送邮件
         server = smtplib.SMTP(SMTP_server, SMTP_port)
@@ -187,7 +187,7 @@ def update_plot():
         time.sleep(2)  # 每 2 秒更新一次图表
 
 # 测试邮件
-send_email_alert("2025-03-05", 2.1)
+# send_email_alert("2025-03-05", 2.1)
 
 # 创建主窗口
 root = tk.Tk()
