@@ -92,8 +92,7 @@ class Spider:
         options.add_argument(f'user-agent={user_agent}')
 
         # 使用 webdriver_manager 自动管理 Edge 驱动
-        driver_path = EdgeChromiumDriverManager().install()
-        driver = webdriver.Edge(executable_path = driver_path, options=options)
+        driver = webdriver.Edge(options=options)
         driver.get(url)
         return driver
 

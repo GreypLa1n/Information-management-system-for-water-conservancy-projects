@@ -1,0 +1,62 @@
+2025-03-09 22:23:30,393 - spider.py - ERROR - 数据爬取失败: HTTPConnectionPool(host='localhost', port=13503): Read timed out. (read timeout=120)
+Traceback (most recent call last):
+  File "E:\python\Lib\site-packages\urllib3\connectionpool.py", line 537, in _make_request
+    response = conn.getresponse()
+               ^^^^^^^^^^^^^^^^^^
+  File "E:\python\Lib\site-packages\urllib3\connection.py", line 466, in getresponse
+    httplib_response = super().getresponse()
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "E:\python\Lib\http\client.py", line 1378, in getresponse
+    response.begin()
+  File "E:\python\Lib\http\client.py", line 318, in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+  File "E:\python\Lib\http\client.py", line 279, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\python\Lib\socket.py", line 706, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "e:\Pcython\水利工程的信息管理系统\Information-management-system-for-water-conservancy-projects\spider.py", line 45, in single_process
+    self.driver.refresh()
+  File "C:\Users\ASUS\AppData\Roaming\Python\Python311\site-packages\selenium\webdriver\remote\webdriver.py", line 700, in refresh
+    self.execute(Command.REFRESH)
+  File "C:\Users\ASUS\AppData\Roaming\Python\Python311\site-packages\selenium\webdriver\remote\webdriver.py", line 427, in execute
+    response = self.command_executor.execute(driver_command, params)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ASUS\AppData\Roaming\Python\Python311\site-packages\selenium\webdriver\remote\remote_connection.py", line 404, in execute
+    return self._request(command_info[0], url, body=data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ASUS\AppData\Roaming\Python\Python311\site-packages\selenium\webdriver\remote\remote_connection.py", line 428, in _request
+    response = self._conn.request(method, url, body=body, headers=headers, timeout=self._client_config.timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\python\Lib\site-packages\urllib3\_request_methods.py", line 144, in request
+    return self.request_encode_body(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\python\Lib\site-packages\urllib3\_request_methods.py", line 279, in request_encode_body
+    return self.urlopen(method, url, **extra_kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\python\Lib\site-packages\urllib3\poolmanager.py", line 444, in urlopen
+    response = conn.urlopen(method, u.request_uri, **kw)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\python\Lib\site-packages\urllib3\connectionpool.py", line 847, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "E:\python\Lib\site-packages\urllib3\util\retry.py", line 470, in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\python\Lib\site-packages\urllib3\util\util.py", line 39, in reraise
+    raise value
+  File "E:\python\Lib\site-packages\urllib3\connectionpool.py", line 793, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "E:\python\Lib\site-packages\urllib3\connectionpool.py", line 539, in _make_request
+    self._raise_timeout(err=e, url=url, timeout_value=read_timeout)
+  File "E:\python\Lib\site-packages\urllib3\connectionpool.py", line 370, in _raise_timeout
+    raise ReadTimeoutError(
+urllib3.exceptions.ReadTimeoutError: HTTPConnectionPool(host='localhost', port=13503): Read timed out. (read timeout=120)
