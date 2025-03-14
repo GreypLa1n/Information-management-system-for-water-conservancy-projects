@@ -4,3 +4,4 @@ config.cfg
 test.ipynb
 *.log
 hw.py
+log.*
