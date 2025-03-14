@@ -26,6 +26,7 @@ import mplcursors
 water_level_threshold = 80  # 水位低于80米时报警
 alerted_timestamps = set()  # 存储报警时间戳，防止重复弹窗
 alerted_window = None  # 存储当前弹窗对象
+avg_data = 20  # 每100条数据更新一次图表
 
 # 可视化界面中文显示
 matplotlib.rcParams["font.sans-serif"] = ["SimHei"]
@@ -126,12 +127,11 @@ def show_history():
 
 # 更新实时数据曲线
 def update_plot():
-    global alerted_timestamps, alerted_window
+    global alerted_timestamps, alerted_window, avg_data
     while True:
         try:
             conn = connect_db()
             cursor = conn.cursor()
-            # 修改查询字段
             cursor.execute("""
                            SELECT timestamp, COALESCE(water_level, 0), COALESCE(temperature, 0), 
                            COALESCE(humidity, 0), COALESCE(windpower, 0)
@@ -155,88 +155,96 @@ def update_plot():
                     "windpower": windpowers
                 })
 
+                # 获取年份
+                year = df["timestamp"].iloc[0].year
+
                 # 计算滚动均值
                 df['water_level_smooth'] = df['water_level'].rolling(window=3, min_periods=1).mean()
                 df['temperature_smooth'] = df['temperature'].rolling(window=3, min_periods=1).mean()
                 df['humidity_smooth'] = df['humidity'].rolling(window=3, min_periods=1).mean()
                 df['windpower_smooth'] = df['windpower'].rolling(window=3, min_periods=1).mean()
 
-                ax1.clear()
-                ax2.clear()
-                ax3.clear()
-                ax4.clear()
+                for i in range(0, len(df), avg_data):
+                    # 清除旧图表
+                    ax1.clear()
+                    ax2.clear()
+                    ax3.clear()
+                    ax4.clear()
 
-                # 水位趋势图
-                ax1.plot(df['timestamp'], df['water_level'], label="水位 (m)", color="blue", alpha=0.3)
-                ax1.plot(df['timestamp'], df['water_level_smooth'], label="水位 (平滑)", color="blue")
-                ax1.set_title("水位变化")
-                ax1.set_ylabel("水位 (m)")
-                ax1.legend()
-                ax1.grid()
+                    subset = df.iloc[i:i + avg_data]  # 每次只取100条数据
+                    # 显示年份
+                    fig.suptitle(f"{year} 年数据分析", fontsize = 14, fontweight = "bold", x = 0.1, y = 0.99)
 
-                # 温度趋势图
-                ax2.plot(df['timestamp'], df['temperature'], label="温度 (℃)", color="red", alpha=0.3)
-                ax2.plot(df['timestamp'], df['temperature_smooth'], label="温度 (平滑)", color="red")
-                ax2.set_title("温度变化")
-                ax2.set_ylabel("温度 (℃)")
-                ax2.legend()
-                ax2.grid()
+                    # 水位趋势图
+                    ax1.plot(subset['timestamp'], subset['water_level'], label="水位 (m)", color="blue", alpha=0.3)
+                    ax1.plot(subset['timestamp'], subset['water_level_smooth'], label="水位 (平滑)", color="blue")
+                    ax1.set_title("水位变化", fontsize = 15)
+                    ax1.set_ylabel("水位 (m)", fontsize = 15)
+                    ax1.legend()
+                    ax1.grid()
 
-                # 湿度趋势图
-                ax3.plot(df['timestamp'], df['humidity'], label="湿度 (%)", color="green", alpha=0.3)
-                ax3.plot(df['timestamp'], df['humidity_smooth'], label="湿度 (平滑)", color="green")
-                ax3.set_title("湿度变化")
-                ax3.set_ylabel("湿度 (%)")
-                ax3.legend()
-                ax3.grid()
+                    # 温度趋势图
+                    ax2.plot(subset['timestamp'], subset['temperature'], label="温度 (℃)", color="red", alpha=0.3)
+                    ax2.plot(subset['timestamp'], subset['temperature_smooth'], label="温度 (平滑)", color="red")
+                    ax2.set_title("温度变化", fontsize = 15)
+                    ax2.set_ylabel("温度 (℃)", fontsize = 15)
+                    ax2.legend()
+                    ax2.grid()
 
-                # 风力趋势图
-                ax4.plot(df['timestamp'], df['windpower'], label="风力 (m/s)", color="purple", alpha=0.3)
-                ax4.plot(df['timestamp'], df['windpower_smooth'], label="风力 (平滑)", color="purple")
-                ax4.set_title("风力变化")
-                ax4.set_ylabel("风力 (m/s)")
-                ax4.legend()
-                ax4.grid()
+                    # 湿度趋势图
+                    ax3.plot(subset['timestamp'], subset['humidity'], label="湿度 (%)", color="green", alpha=0.3)
+                    ax3.plot(subset['timestamp'], subset['humidity_smooth'], label="湿度 (平滑)", color="green")
+                    ax3.set_title("湿度变化", fontsize = 15)
+                    ax3.set_ylabel("湿度 (%)", fontsize = 15)
+                    ax3.legend()
+                    ax3.grid()
 
-                canvas.draw()
+                    # 风力趋势图
+                    ax4.plot(subset['timestamp'], subset['windpower'], label="风力 (m/s)", color="purple", alpha=0.3)
+                    ax4.plot(subset['timestamp'], subset['windpower_smooth'], label="风力 (平滑)", color="purple")
+                    ax4.set_title("风力变化", fontsize = 15)
+                    ax4.set_ylabel("风力 (m/s)", fontsize = 15)
+                    ax4.legend()
+                    ax4.grid()
 
-                # 监测水位是否低于警戒值（逻辑不变）
-                for i, water_level in enumerate(water_levels):
-                    if water_level < water_level_threshold and timestamps[i] not in alerted_timestamps:
-                        if alerted_window:
-                            alerted_window.destroy()
-                            alerted_window = None
+                    canvas.draw()
+                    time.sleep(2)  # 等待2秒再绘制下一张
 
-                        warning_message = f"警告！\n时间：{timestamps[i]}\n水位过低：{water_level}米\n请检查系统！"
-                        alerted_timestamps.add(timestamps[i])
-                        alert_window = tk.Toplevel(root)
-                        alert_window.title("水位警告")
-                        alert_label = tk.Label(alert_window, text=warning_message, font=("SimHei", 12))
-                        alert_label.pack(padx=50, pady=50)
+                    # 监测水位是否低于警戒值（逻辑不变）
+                    for i, water_level in enumerate(water_levels):
+                        if water_level < water_level_threshold and timestamps[i] not in alerted_timestamps:
+                            if alerted_window:
+                                alerted_window.destroy()
+                                alerted_window = None
 
-                        def close_alert():
-                            alert_window.destroy()
-                            global alerted_window
-                            alerted_window = None
+                            warning_message = f"警告！\n时间：{timestamps[i]}\n水位过低：{water_level}米\n请检查系统！"
+                            alerted_timestamps.add(timestamps[i])
+                            alert_window = tk.Toplevel(root)
+                            alert_window.title("水位警告")
+                            alert_label = tk.Label(alert_window, text=warning_message, font=("SimHei", 12))
+                            alert_label.pack(padx=50, pady=50)
 
-                        confirm_button = tk.Button(alert_window, text="确认", command=close_alert)
-                        confirm_button.pack(pady=10)
+                            def close_alert():
+                                alert_window.destroy()
+                                global alerted_window
+                                alerted_window = None
 
-                        timer = threading.Timer(30, check_alert_window, args=(timestamps[i], water_level))
-                        timer.start()
-                        send_email_alert(timestamps[i], water_level)
-                        alerted_window = alert_window
-                        break
+                            confirm_button = tk.Button(alert_window, text="确认", command=close_alert)
+                            confirm_button.pack(pady=10)
+
+                            timer = threading.Timer(30, check_alert_window, args=(timestamps[i], water_level))
+                            timer.start()
+                            send_email_alert(timestamps[i], water_level)
+                            alerted_window = alert_window
+                            break
 
         except mysql.connector.Error as err:
             print(f"MySQL 错误: {err}")
 
-        time.sleep(2)
-
 # 创建主窗口
 root = tk.Tk()
 root.title("水利工程数据可视化与监控系统")
-root.geometry("1280x960")
+root.geometry("1920x960")
 
 # Matplotlib 图表
 fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 8), dpi=100)
