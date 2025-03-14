@@ -17,3 +17,6 @@
 美国地址调查局（https://waterdata.usgs.gov/nwis）提供的全国水文数据，包括河流流量、地下水位、降雨量等
 
 下载数据集pip install hydrofunctions
+
+3/14 增加了水利数据集，将数据读入数据库，修改main.py使每20条数据更新一次图表，优化视觉体验
+
