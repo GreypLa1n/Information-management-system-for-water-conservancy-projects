@@ -24,10 +24,10 @@ import mplcursors
 import datetime
 
 # 设定水位警戒值
-water_level_threshold = 85  # 水位高于85米时报警
+water_level_threshold = 85.45  # 水位高于85米时报警
 alerted_timestamps = set()  # 存储报警时间戳，防止重复弹窗
 alerted_window = None  # 存储当前弹窗对象
-avg_data = 20  # 每100条数据更新一次图表
+avg_data = 100  # 每100条数据更新一次图表
 last_email_sent_time = None  # 记录上一次邮件发送的邮件
 email_lock = threading.Lock()  # 线程锁，防止并发访问
 
@@ -92,7 +92,7 @@ def send_email_alert(timestamp, water_level):
 def check_alert_window(alert_window, timestamp, water_level):
     time.sleep(30)  # 等待30秒
     if alert_window.winfo_exists():  # 弹窗30秒内未关闭
-        print(f"警告弹窗未关闭，将发送邮件通知（时间：{timestamp}）")
+        print(f"警告弹窗在30秒内未关闭，将发送邮件通知（时间：{timestamp}）")
         send_email_alert(timestamp, water_level)
         alert_window.destroy()  # 关闭弹窗
         alert_window = None  # 清空弹窗对象
