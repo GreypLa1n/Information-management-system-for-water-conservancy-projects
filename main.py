@@ -21,12 +21,15 @@ from email.mime.multipart import MIMEMultipart
 import pandas as pd
 import numpy as np
 import mplcursors
+import datetime
 
 # 设定水位警戒值
-water_level_threshold = 80  # 水位低于80米时报警
+water_level_threshold = 83  # 水位高于83米时报警
 alerted_timestamps = set()  # 存储报警时间戳，防止重复弹窗
 alerted_window = None  # 存储当前弹窗对象
 avg_data = 20  # 每100条数据更新一次图表
+last_email_sent_time = None  # 记录上一次邮件发送的邮件
+email_lock = threading.Lock()  # 线程锁，防止并发访问
 
 # 可视化界面中文显示
 matplotlib.rcParams["font.sans-serif"] = ["SimHei"]
@@ -56,34 +59,43 @@ def connect_db():
 
 # 发送邮件警告
 def send_email_alert(timestamp, water_level):
-    try:
-        subject = "【警告】水利工程系统水位过低"
-        body = f"警告！\n时间：{timestamp}\n水位过低：{water_level}米\n请立即处理！"
-        msg = MIMEMultipart()
-        msg["From"] = Email_sender
-        msg["To"] = Email_receiver
-        msg["Subject"] = subject
-        msg.attach(MIMEText(body, "plain", "utf-8"))
+    global last_email_sent_time
+    with email_lock:
+        current_time = datetime.datetime.now()
 
-        # 连接SMTP服务器并发送邮件
-        server = smtplib.SMTP(SMTP_server, SMTP_port)
-        server.starttls()  # 启用TLS加密
-        server.login(Email_sender, Email_password)
-        server.sendmail(Email_sender, Email_receiver, msg.as_string())
-        server.quit()
+        # 检查是否已经过了30分钟
+        if last_email_sent_time and (current_time - last_email_sent_time).total_seconds() < 1800:
+            print("30分钟内已经发送过邮件，跳过此次发送。")
+            return  # 跳过发送
+        try:
+            subject = "【警告】水利工程系统水位过低"
+            body = f"警告！\n时间：{timestamp}\n水位过高：{water_level}米\n请立即处理！"
+            msg = MIMEMultipart()
+            msg["From"] = Email_sender
+            msg["To"] = Email_receiver
+            msg["Subject"] = subject
+            msg.attach(MIMEText(body, "plain", "utf-8"))
 
-        print("警告邮件已发送")
-    except Exception as e:
-        print(f"警告邮件发送失败：{e}")
+            # 连接SMTP服务器并发送邮件
+            server = smtplib.SMTP(SMTP_server, SMTP_port)
+            server.starttls()  # 启用TLS加密
+            server.login(Email_sender, Email_password)
+            server.sendmail(Email_sender, Email_receiver, msg.as_string())
+            server.quit()
+
+            last_email_sent_time = current_time  # 更新邮件发送时间
+            print("警告邮件已发送")
+        except Exception as e:
+            print(f"警告邮件发送失败：{e}")
 
 # 检测弹窗是否关闭，超时发送邮件
-def check_alert_window(timestamp, water_level):
-    global alerted_window
-    if alerted_window:  # 弹窗长时间未关闭
+def check_alert_window(alert_window, timestamp, water_level):
+    time.sleep(30)  # 等待30秒
+    if alert_window.winfo_exists():  # 弹窗30秒内未关闭
         print(f"警告弹窗未关闭，将发送邮件通知（时间：{timestamp}）")
         send_email_alert(timestamp, water_level)
-        alerted_window.destroy()  # 关闭弹窗
-        alerted_window = None  # 清空弹窗对象
+        alert_window.destroy()  # 关闭弹窗
+        alert_window = None  # 清空弹窗对象
 
 # 显示历史数据窗口
 def show_history():
@@ -210,9 +222,9 @@ def update_plot():
                     canvas.draw()
                     time.sleep(2)  # 等待2秒再绘制下一张
 
-                    # 监测水位是否低于警戒值（逻辑不变）
+                    # 监测水位是否低于警戒值
                     for i, water_level in enumerate(water_levels):
-                        if water_level < water_level_threshold and timestamps[i] not in alerted_timestamps:
+                        if water_level > water_level_threshold and timestamps[i] not in alerted_timestamps:
                             if alerted_window:
                                 alerted_window.destroy()
                                 alerted_window = None
@@ -232,9 +244,11 @@ def update_plot():
                             confirm_button = tk.Button(alert_window, text="确认", command=close_alert)
                             confirm_button.pack(pady=10)
 
-                            timer = threading.Timer(30, check_alert_window, args=(timestamps[i], water_level))
+                            timer = threading.Timer(30, check_alert_window, args = (alert_window, timestamps[i], water_level))
                             timer.start()
                             send_email_alert(timestamps[i], water_level)
+                            # 启动30秒后检查弹窗状态的线程
+                            threading.Thread(target=check_alert_window, args = (alert_window, timestamps[i], water_level), daemon=True).start()
                             alerted_window = alert_window
                             break
 
