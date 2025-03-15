@@ -24,7 +24,7 @@ import mplcursors
 import datetime
 
 # 设定水位警戒值
-water_level_threshold = 83  # 水位高于83米时报警
+water_level_threshold = 85  # 水位高于85米时报警
 alerted_timestamps = set()  # 存储报警时间戳，防止重复弹窗
 alerted_window = None  # 存储当前弹窗对象
 avg_data = 20  # 每100条数据更新一次图表
@@ -246,7 +246,7 @@ def update_plot():
 
                             timer = threading.Timer(30, check_alert_window, args = (alert_window, timestamps[i], water_level))
                             timer.start()
-                            send_email_alert(timestamps[i], water_level)
+                            # send_email_alert(timestamps[i], water_level)
                             # 启动30秒后检查弹窗状态的线程
                             threading.Thread(target=check_alert_window, args = (alert_window, timestamps[i], water_level), daemon=True).start()
                             alerted_window = alert_window
