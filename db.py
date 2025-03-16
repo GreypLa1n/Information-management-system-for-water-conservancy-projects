@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+# @Time    : 2025/3/12 11:31
+# @Author  : Bruam1
+# @Email   : grey040612@gmail.com
+# @File    : db.py
+# @Software: Vscode
+
+
 import mysql.connector
 import pandas as pd
 import os
@@ -9,17 +16,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 设置日志
-logging.basicConfig(filename="data_log.log", level=logging.INFO, 
-                    format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(filename = "data_log.log", level = logging.INFO, 
+                    format = "%(asctime)s - %(levelname)s - %(message)s")
 
 # 数据库连接函数
 def connect_db():
     try:
         return mysql.connector.connect(
-            host=os.getenv("DB_HOST", "localhost"),
-            user=os.getenv("DB_USER", "sensor_user"),
-            password=os.getenv("DB_PASSWORD", ""),
-            database=os.getenv("DB_NAME", "reservoir_db")
+            host = os.getenv("DB_HOST", "localhost"),
+            user = os.getenv("DB_USER", "sensor_user"),
+            password = os.getenv("DB_PASSWORD", ""),
+            database = os.getenv("DB_NAME", "reservoir_db")
         )
     except mysql.connector.Error as err:
         logging.error(f"数据库连接失败: {err}")
@@ -34,10 +41,10 @@ def insert_csv_data(csv_path):
         return
 
     # 处理数据，确保列名匹配数据库
-    df.rename(columns={
+    df.rename(columns = {
         "times": "timestamp",
         "waterlevels": "water_level"
-    }, inplace=True)
+    }, inplace = True)
 
     # **缺失值处理**
     df = df.where(pd.notnull(df), None)  # NaN 替换为 None 适用于数据库
@@ -46,18 +53,18 @@ def insert_csv_data(csv_path):
 
     # **数据类型转换**
     try:
-        df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")  # 解析时间格式
-        df["temperature"] = pd.to_numeric(df["temperature"], errors="coerce")
-        df["humidity"] = pd.to_numeric(df["humidity"], errors="coerce")
-        df["windpower"] = pd.to_numeric(df["windpower"], errors="coerce")
-        df["rains"] = pd.to_numeric(df["rains"], errors="coerce")
-        df["water_level"] = pd.to_numeric(df["water_level"], errors="coerce")
+        df["timestamp"] = pd.to_datetime(df["timestamp"], errors = "coerce")  # 解析时间格式
+        df["temperature"] = pd.to_numeric(df["temperature"], errors = "coerce")
+        df["humidity"] = pd.to_numeric(df["humidity"], errors = "coerce")
+        df["windpower"] = pd.to_numeric(df["windpower"], errors = "coerce")
+        df["rains"] = pd.to_numeric(df["rains"], errors = "coerce")
+        df["water_level"] = pd.to_numeric(df["water_level"], errors = "coerce")
     except Exception as e:
         logging.error(f"数据类型转换失败: {e}")
         return
 
     # **异常值检测**
-    df = df.dropna(subset=["timestamp", "water_level"])  # 删除关键字段为空的行
+    df = df.dropna(subset = ["timestamp", "water_level"])  # 删除关键字段为空的行
     df = df[(df["water_level"] > 0) & (df["water_level"] < 300)]  # 水位应在合理范围
     df = df[(df["temperature"] > -50) & (df["temperature"] < 60)]  # 温度合理范围
     df = df[(df["humidity"] >= 0) & (df["humidity"] <= 100)]  # 湿度范围

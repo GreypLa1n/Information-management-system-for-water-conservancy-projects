@@ -2,8 +2,10 @@
 # @Time    : 2025/3/2 18:12
 # @Author  : Bruam1
 # @Email   : grey040612@gmail.com
-# @File    : main.py
+# @File    : main_random.py
 # @Software: Vscode
+
+
 import configparser
 import mysql.connector
 import tkinter as tk
