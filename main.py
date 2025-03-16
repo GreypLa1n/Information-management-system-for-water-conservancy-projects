@@ -70,7 +70,7 @@ def send_email_alert(timestamp, water_level):
             print("30分钟内已经发送过邮件，跳过此次发送。")
             return  # 跳过发送
         try:
-            subject = "【警告】水利工程系统水位过低"
+            subject = "【警告】水利工程系统水位过高"
             body = f"警告！\n时间：{timestamp}\n水位过高：{water_level}米\n请立即处理！"
             msg = MIMEMultipart()
             msg["From"] = Email_sender
