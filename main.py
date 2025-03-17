@@ -277,8 +277,13 @@ def get_histroy_data():
     try:
         conn = connect_db()
         cursor = conn.cursor(dictionary = True)
-        cursor.execute("SELECT * FROM water_levels ORDER BY timestamp DESC LIMIT 100")  # 获取最新的100条数据
+        cursor.execute("SELECT * FROM sensor_data ORDER BY timestamp DESC LIMIT 100")  # 获取最新的100条数据
         data = cursor.fetchall()
+
+        for row in data:
+            if isinstance(row["timestamp"], datetime.datetime):
+                row["timestamp"] = row["timestamp"].strftime("%Y-%m-%d %H:%M:%S")  # 格式化时间
+
         cursor.close()
         return data
     except mysql.connector.Error as e:
@@ -286,7 +291,7 @@ def get_histroy_data():
 
 # 调用DeepSeek查询
 def ask_deepseek():
-    question = deepseep_input.get("1.0", "end").strip()
+    question = deepseep_input.get("1.0", "end-1c").strip()
     if not question:
         deepseek_output.config(state = tk.NORMAL)
         deepseek_output.delete(1.0, tk.END)
@@ -297,18 +302,24 @@ def ask_deepseek():
     # 获取最近的水文数据
     history_data = get_histroy_data()
 
+    question = str(history_data) + question
     try:
+        # print("正在发送请求到....")
         response = requests.post(
-            deepseek_url,
-            json = {"question" : question,
-                    "history" : history_data},
-            timeout = 10
+            url = deepseek_url,
+            json = {
+                "model": "deepseek-r1:7b",
+                "prompt": question,
+                "stream": False
+                },
         )
+
         response.raise_for_status()
         response_data = response.json()
         response_text = response_data.get("response", "API 未返回数据。")
     except requests.exceptions.RequestException as e:
         response_text = f"请求失败：{e}"
+
     except json.JSONDecodeError:
         response_text = "API 返回了无法解析的数据格式。"
 
@@ -316,6 +327,7 @@ def ask_deepseek():
     deepseek_output.delete(1.0, tk.END)
     deepseek_output.insert(tk.END, response_text)
     deepseek_output.config(state = tk.DISABLED)
+
 
 
 # 创建主窗口
