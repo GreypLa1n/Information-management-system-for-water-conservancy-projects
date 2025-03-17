@@ -24,6 +24,8 @@ import pandas as pd
 import numpy as np
 import mplcursors
 import datetime
+import requests
+import json
 
 # 设定水位警戒值
 water_level_threshold = 85.45  # 水位高于85米时报警
@@ -270,24 +272,103 @@ def update_plot():
         except mysql.connector.Error as err:
             print(f"MySQL 错误: {err}")
 
+# 获取历史数据进行分析
+def get_histroy_data():
+    try:
+        conn = connect_db()
+        cursor = conn.cursor(dictionary = True)
+        cursor.execute("SELECT * FROM water_levels ORDER BY timestamp DESC LIMIT 100")  # 获取最新的100条数据
+        data = cursor.fetchall()
+        cursor.close()
+        return data
+    except mysql.connector.Error as e:
+        return []
+
+# 调用DeepSeek查询
+def ask_deepseek():
+    question = deepseep_input.get("1.0", "end").strip()
+    if not question:
+        deepseek_output.config(state = tk.NORMAL)
+        deepseek_output.delete(1.0, tk.END)
+        deepseek_output.insert(tk.END, "请输入问题后再查询。")
+        deepseek_output.config(state = tk.DISABLED)
+        return
+    
+    # 获取最近的水文数据
+    history_data = get_histroy_data()
+
+    try:
+        response = requests.post(
+            deepseek_url,
+            json = {"question" : question,
+                    "history" : history_data},
+            timeout = 10
+        )
+        response.raise_for_status()
+        response_data = response.json()
+        response_text = response_data.get("response", "API 未返回数据。")
+    except requests.exceptions.RequestException as e:
+        response_text = f"请求失败：{e}"
+    except json.JSONDecodeError:
+        response_text = "API 返回了无法解析的数据格式。"
+
+    deepseek_output.config(state = tk.NORMAL)
+    deepseek_output.delete(1.0, tk.END)
+    deepseek_output.insert(tk.END, response_text)
+    deepseek_output.config(state = tk.DISABLED)
+
+
 # 创建主窗口
 root = tk.Tk()
 root.title("水利工程数据可视化与监控系统")
-root.geometry("1920x960")
+root.geometry("2400x960")
+
+# 创建主框架
+main_frame = tk.Frame(root)
+main_frame.pack(fill = tk.BOTH, expand = True)
+
+# 创建图表区域
+chart_frame = tk.Frame(main_frame)
+chart_frame.grid(row = 0, column = 0, sticky = "nsew")
 
 # Matplotlib 图表
 fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize = (12, 8), dpi = 100)
 fig.tight_layout(pad = 3.0)
-canvas = FigureCanvasTkAgg(fig, master = root)
+canvas = FigureCanvasTkAgg(fig, master = chart_frame)
 canvas_widget = canvas.get_tk_widget()
 canvas_widget.pack(fill = tk.BOTH, expand = True)
 
 # 启用交互式图表
 mplcursors.cursor()
 
+# DeepSeek模块
+deepseek_url = os.getenv("DEEPSEEK_URL")
+deepseek_frame = tk.Frame(main_frame, width = 500, padx = 10, pady = 10)
+deepseek_frame.grid(row = 0, column = 1, sticky = "nsew")
+
+# 提问框
+deepseek_label = tk.Label(deepseek_frame, text = "请输入您的问题：", font = ("SimHei", 14))
+deepseek_label.pack(anchor = "w")
+
+deepseep_input = tk.Text(deepseek_frame, height = 5, width = 60, font = ("SimHei", 14))
+deepseep_input.pack(pady = 5)
+
+# 提交按钮
+deepseek_button = tk.Button(deepseek_frame, text = "查询", font = ("SimHei", 14), command = ask_deepseek)
+deepseek_button.pack(pady = 5)
+
+# 结果显示框
+deepseek_output = tk.Text(deepseek_frame, height = 40, width = 60, font = ("SimHei", 14), state = tk.DISABLED)
+deepseek_output.pack(pady = 5)
+
+# 设置布局权重
+main_frame.columnconfigure(0, weight = 4)
+main_frame.columnconfigure(1, weight = 2)
+main_frame.rowconfigure(0, weight = 1)
+
 # 按钮：查看历史数据
-history_button = tk.Button(root, text = "查看历史数据", command = show_history, font = ("SimHei", 12))
-history_button.pack(side = tk.BOTTOM, pady = 10)
+history_button = tk.Button(chart_frame, text = "查看历史数据", command = show_history, font = ("SimHei", 12))
+history_button.pack(pady = 10)
 
 # 启动数据更新线程
 threading.Thread(target = update_plot, daemon = True).start()
