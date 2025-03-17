@@ -1,0 +1,6 @@
+[Email_Setting]
+Email_sender = sender_email_address
+Email_password = your_email_authorize_code
+Email_receiver = receiver_email_address
+SMTP_server = smtp_server_address
+SMTP_port = smtp_port_number
