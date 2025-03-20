@@ -7,7 +7,7 @@
 
 
 import configparser
-import mysql.connector
+import pymysql
 import tkinter as tk
 from tkinter import ttk
 import threading
@@ -54,7 +54,7 @@ load_dotenv()
 
 # 数据库连接函数
 def connect_db():
-    return mysql.connector.connect(
+    return pymysql.connect(
         host = os.getenv("DB_HOST", "localhost"),
         user = os.getenv("DB_USER", "sensor_user"),
         password = os.getenv("DB_PASSWORD", ""),
