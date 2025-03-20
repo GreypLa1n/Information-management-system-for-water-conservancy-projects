@@ -151,7 +151,7 @@ def show_history():
 
         for row in rows:
             tree.insert("", "end", values=row)
-    except mysql.connector.Error as err:
+    except pymysql.Error as err:
         print(f"MySQL 错误: {err}")
 
 # 更新实时数据曲线
@@ -269,7 +269,7 @@ def update_plot():
                             alerted_window = alert_window
                             break
 
-        except mysql.connector.Error as err:
+        except pymysql.Error as err:
             print(f"MySQL 错误: {err}")
 
 # 获取历史数据进行分析
@@ -286,7 +286,7 @@ def get_histroy_data():
 
         cursor.close()
         return data
-    except mysql.connector.Error as e:
+    except pymysql.Error as e:
         return []
 
 # 调用DeepSeek查询
