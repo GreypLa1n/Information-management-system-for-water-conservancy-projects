@@ -19,7 +19,7 @@ function createChartConfig(label, color) {
             labels: [],
             datasets: [{
                 label: label,
-                    data: [],
+                data: [],
                 borderColor: color,
                 tension: 0.1,
                 fill: false,
@@ -233,9 +233,9 @@ async function updateRealtimeData() {
             } else {
                 // 每次只增加1，移动一个数据点
                 dataOffset += 1;
-        }
+            }
 
-        lastUpdateTime = new Date();
+            lastUpdateTime = new Date();
 
             // 输出调试信息
             console.log('当前数据偏移量:', dataOffset);
@@ -365,15 +365,21 @@ async function queryDeepseek() {
             body: JSON.stringify({ question: question })
         });
 
+        const data = await response.json();
+        console.log("收到的响应:", data);
+
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error(data.error || `HTTP error! status: ${response.status}`);
         }
 
-        const data = await response.json();
-        output.value = data.response || "分析过程中出现错误，请稍后重试。";
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        output.value = data.response || "未能获取有效回答";
     } catch (error) {
         console.error('查询失败:', error);
-        output.value = "查询失败，请稍后重试。";
+        output.value = `查询失败: ${error.message}`;
     }
 }
 

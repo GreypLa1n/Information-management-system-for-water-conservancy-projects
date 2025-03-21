@@ -142,7 +142,7 @@ def deepseek_query():
                 LIMIT 100
             """)
             history_data = cursor.fetchall()
-            print(f"获取到 {len(history_data)} 条历史数据", flush=True)  # 添加数据获取状态输出
+            print(f"获取到 {len(history_data)} 条历史数据:{history_data}", flush=True)  # 添加数据获取状态输出
             
         conn.close()
 
@@ -152,7 +152,6 @@ def deepseek_query():
             print("DeepSeek URL 未配置", flush=True)  # 添加配置检查输出
             return jsonify({'error': 'DeepSeek API 配置缺失'}), 500
 
-        # 构建提示信息
         prompt = str(history_data) + question
 
         # print("发送到 DeepSeek 的提示信息:", prompt, flush=True)  # 添加提示信息输出
@@ -160,11 +159,11 @@ def deepseek_query():
         
         response = requests.post(
             url=deepseek_url,
-            json = {
-                "model": "deepseek-r1:7b",
-                "prompt": question,
-                "stream": False
-                },
+            json={
+                'model': 'deepseek-r1:7b',
+                'prompt': prompt,
+                "stream": True
+            },
         )
         
         print(f"DeepSeek API 响应状态码: {response.status_code}", flush=True)
@@ -174,11 +173,8 @@ def deepseek_query():
 
         result = response.json()
         print("DeepSeek 返回结果:", result, flush=True)  # 添加结果输出
-        
-        # 从返回结果中提取回答内容
-        answer = result.get('text', '未能获取有效回答')
         return jsonify({
-            'response': answer
+            'response': result.get('response', '未能获取有效回答')
         })
 
     except requests.Timeout:

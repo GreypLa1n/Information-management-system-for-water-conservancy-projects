@@ -26,6 +26,15 @@
             font-size: 24px;
             font-weight: bold;
             margin: 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .data-unit {
+            font-size: 16px;
+            color: #666;
         }
 
         .current-date {
@@ -192,8 +201,10 @@
                     <div class="card data-card">
                         <div class="card-body">
                             <h5 class="card-title">水位</h5>
-                            <div class="data-value" id="water-level">--</div>
-                            <div class="card-text">米</div>
+                            <div class="data-value">
+                                <span id="water-level">--</span>
+                                <span class="data-unit">米</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -201,8 +212,10 @@
                     <div class="card data-card">
                         <div class="card-body">
                             <h5 class="card-title">温度</h5>
-                            <div class="data-value" id="temperature">--</div>
-                            <div class="card-text">℃</div>
+                            <div class="data-value">
+                                <span id="temperature">--</span>
+                                <span class="data-unit">℃</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -210,8 +223,10 @@
                     <div class="card data-card">
                         <div class="card-body">
                             <h5 class="card-title">湿度</h5>
-                            <div class="data-value" id="humidity">--</div>
-                            <div class="card-text">%</div>
+                            <div class="data-value">
+                                <span id="humidity">--</span>
+                                <span class="data-unit">%</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -219,8 +234,10 @@
                     <div class="card data-card">
                         <div class="card-body">
                             <h5 class="card-title">风力</h5>
-                            <div class="data-value" id="wind-power">--</div>
-                            <div class="card-text">m/s</div>
+                            <div class="data-value">
+                                <span id="wind-power">--</span>
+                                <span class="data-unit">m/s</span>
+                            </div>
                         </div>
                     </div>
                 </div>
