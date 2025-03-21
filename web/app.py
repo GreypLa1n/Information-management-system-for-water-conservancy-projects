@@ -123,6 +123,7 @@ def deepseek_query():
     try:
         data = request.get_json()
         question = data.get('question')
+        print("收到问题:", question, flush=True)  # 添加问题输出
         
         if not question:
             return jsonify({'error': '请提供问题'}), 400
@@ -130,45 +131,86 @@ def deepseek_query():
         # 获取最近的数据作为上下文
         conn = connect_db()
         if not conn:
+            print("数据库连接失败", flush=True)  # 添加数据库连接状态输出
             return jsonify({'error': '数据库连接失败'}), 500
 
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("""
-            SELECT timestamp, water_level, temperature, humidity, windpower
-            FROM sensor_data
-            ORDER BY timestamp DESC
-            LIMIT 100
-        """)
-        history_data = cursor.fetchall()
-        cursor.close()
+        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+            cursor.execute("""
+                SELECT timestamp, water_level, temperature, humidity, windpower
+                FROM sensor_data
+                ORDER BY timestamp DESC
+                LIMIT 100
+            """)
+            history_data = cursor.fetchall()
+            print(f"获取到 {len(history_data)} 条历史数据", flush=True)  # 添加数据获取状态输出
+            
         conn.close()
 
         # 构建发送到 DeepSeek API 的请求
         deepseek_url = os.getenv('DEEPSEEK_URL')
         if not deepseek_url:
+            print("DeepSeek URL 未配置", flush=True)  # 添加配置检查输出
             return jsonify({'error': 'DeepSeek API 配置缺失'}), 500
 
-        # 将历史数据和问题组合
-        context = str(history_data) + "\n" + question
+        # 格式化历史数据
+        formatted_data = []
+        for record in history_data:
+            formatted_record = {
+                'timestamp': record['timestamp'].strftime('%Y-%m-%d %H:%M:%S'),
+                'water_level': float(record['water_level']) if record['water_level'] else None,
+                'temperature': float(record['temperature']) if record['temperature'] else None,
+                'humidity': float(record['humidity']) if record['humidity'] else None,
+                'windpower': float(record['windpower']) if record['windpower'] else None
+            }
+            formatted_data.append(formatted_record)
+
+        # 构建提示信息
+        prompt = f"""基于以下最近的传感器数据，{question}
+
+数据概要：
+最新数据时间：{formatted_data[0]['timestamp']}
+最新水位：{formatted_data[0]['water_level']}米
+最新温度：{formatted_data[0]['temperature']}℃
+最新湿度：{formatted_data[0]['humidity']}%
+最新风力：{formatted_data[0]['windpower']}m/s
+
+请根据这些数据进行分析和回答。"""
+
+        print("发送到 DeepSeek 的提示信息:", prompt, flush=True)  # 添加提示信息输出
+        print(f"正在发送请求到 DeepSeek API: {deepseek_url}", flush=True)
         
         response = requests.post(
             url=deepseek_url,
             json={
-                'model': 'deepseek-r1:7b',
-                'prompt': context,
-                'stream': False
-            }
+                'model': 'deepseek-chat',
+                'messages': [
+                    {"role": "user", "content": prompt}
+                ],
+                'temperature': 0.7,
+                'max_tokens': 1000
+            },
+            timeout=30  # 设置30秒超时
         )
         
-        response.raise_for_status()
+        print(f"DeepSeek API 响应状态码: {response.status_code}", flush=True)
+        if response.status_code != 200:
+            print(f"DeepSeek API 错误响应: {response.text}", flush=True)
+            return jsonify({'error': 'DeepSeek API 请求失败'}), 500
+
         result = response.json()
-        
+        print("DeepSeek 返回结果:", result, flush=True)  # 添加结果输出
         return jsonify({
             'response': result.get('response', '未能获取有效回答')
         })
 
+    except requests.Timeout:
+        print("DeepSeek API 请求超时", flush=True)
+        return jsonify({'error': 'DeepSeek API 请求超时'}), 504
+    except requests.RequestException as e:
+        print(f"请求错误: {str(e)}", flush=True)
+        return jsonify({'error': f'请求错误: {str(e)}'}), 500
     except Exception as e:
-        print(f"DeepSeek 查询错误: {str(e)}")
+        print(f"意外错误: {str(e)}", flush=True)
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

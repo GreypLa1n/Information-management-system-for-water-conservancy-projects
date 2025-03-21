@@ -24,6 +24,7 @@ import pandas as pd
 import numpy as np
 import mplcursors
 import datetime
+import pymysql.cursors
 import requests
 import json
 
@@ -276,7 +277,7 @@ def update_plot():
 def get_histroy_data():
     try:
         conn = connect_db()
-        cursor = conn.cursor(dictionary = True)
+        cursor = conn.cursor(pymysql.cursors.DictCursor)
         cursor.execute("SELECT * FROM sensor_data ORDER BY timestamp DESC LIMIT 100")  # 获取最新的100条数据
         data = cursor.fetchall()
 

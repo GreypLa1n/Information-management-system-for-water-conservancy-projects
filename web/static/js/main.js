@@ -345,6 +345,8 @@ async function queryDeepseek() {
     const output = document.getElementById('deepseek-output');
     const question = input.value.trim();
 
+    console.log("发送问题:", question);
+
     if (!question) {
         output.value = "请输入问题后再查询。";
         return;
@@ -398,6 +400,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // 历史数据查询
     document.getElementById('query-btn').addEventListener('click', fetchHistoryData);
 
+    // DeepSeek 查询按钮点击事件
+    const queryButton = document.getElementById('query-deepseek');
+    if (queryButton) {
+        queryButton.addEventListener('click', queryDeepseek);
+        console.log('已绑定 DeepSeek 查询按钮点击事件');
+    } else {
+        console.error('未找到 DeepSeek 查询按钮');
+    }
+
     // 添加回车键支持
     const inputArea = document.getElementById('deepseek-input');
     if (inputArea) {
@@ -407,5 +418,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 queryDeepseek();
             }
         });
+        console.log('已绑定 DeepSeek 输入框回车事件');
+    } else {
+        console.error('未找到 DeepSeek 输入框');
     }
 }); 
