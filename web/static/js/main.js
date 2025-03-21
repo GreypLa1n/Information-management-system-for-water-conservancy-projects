@@ -19,7 +19,7 @@ function createChartConfig(label, color) {
             labels: [],
             datasets: [{
                 label: label,
-                data: [],
+                    data: [],
                 borderColor: color,
                 tension: 0.1,
                 fill: false,
@@ -233,9 +233,9 @@ async function updateRealtimeData() {
             } else {
                 // 每次只增加1，移动一个数据点
                 dataOffset += 1;
-            }
+        }
 
-            lastUpdateTime = new Date();
+        lastUpdateTime = new Date();
 
             // 输出调试信息
             console.log('当前数据偏移量:', dataOffset);

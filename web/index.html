@@ -127,13 +127,25 @@
 
         .deepseek-output {
             width: 100%;
-            min-height: 200px;
+            min-height: 300px;
+            /* 增加最小高度 */
+            height: 400px;
+            /* 设置默认高度 */
             margin-top: 15px;
             padding: 10px;
             border: 1px solid #ced4da;
             border-radius: 4px;
             background-color: white;
             resize: vertical;
+            /* 允许用户调整高度 */
+            overflow-y: auto;
+            /* 添加垂直滚动条 */
+            white-space: pre-wrap;
+            /* 保留换行和空格 */
+            font-size: 14px;
+            /* 设置合适的字体大小 */
+            line-height: 1.5;
+            /* 设置行高 */
         }
 
         .btn-query {

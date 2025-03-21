@@ -152,44 +152,19 @@ def deepseek_query():
             print("DeepSeek URL 未配置", flush=True)  # 添加配置检查输出
             return jsonify({'error': 'DeepSeek API 配置缺失'}), 500
 
-        # 格式化历史数据
-        formatted_data = []
-        for record in history_data:
-            formatted_record = {
-                'timestamp': record['timestamp'].strftime('%Y-%m-%d %H:%M:%S'),
-                'water_level': float(record['water_level']) if record['water_level'] else None,
-                'temperature': float(record['temperature']) if record['temperature'] else None,
-                'humidity': float(record['humidity']) if record['humidity'] else None,
-                'windpower': float(record['windpower']) if record['windpower'] else None
-            }
-            formatted_data.append(formatted_record)
-
         # 构建提示信息
-        prompt = f"""基于以下最近的传感器数据，{question}
+        prompt = str(history_data) + question
 
-数据概要：
-最新数据时间：{formatted_data[0]['timestamp']}
-最新水位：{formatted_data[0]['water_level']}米
-最新温度：{formatted_data[0]['temperature']}℃
-最新湿度：{formatted_data[0]['humidity']}%
-最新风力：{formatted_data[0]['windpower']}m/s
-
-请根据这些数据进行分析和回答。"""
-
-        print("发送到 DeepSeek 的提示信息:", prompt, flush=True)  # 添加提示信息输出
+        # print("发送到 DeepSeek 的提示信息:", prompt, flush=True)  # 添加提示信息输出
         print(f"正在发送请求到 DeepSeek API: {deepseek_url}", flush=True)
         
         response = requests.post(
             url=deepseek_url,
-            json={
-                'model': 'deepseek-chat',
-                'messages': [
-                    {"role": "user", "content": prompt}
-                ],
-                'temperature': 0.7,
-                'max_tokens': 1000
-            },
-            timeout=30  # 设置30秒超时
+            json = {
+                "model": "deepseek-r1:7b",
+                "prompt": question,
+                "stream": False
+                },
         )
         
         print(f"DeepSeek API 响应状态码: {response.status_code}", flush=True)
@@ -199,8 +174,11 @@ def deepseek_query():
 
         result = response.json()
         print("DeepSeek 返回结果:", result, flush=True)  # 添加结果输出
+        
+        # 从返回结果中提取回答内容
+        answer = result.get('text', '未能获取有效回答')
         return jsonify({
-            'response': result.get('response', '未能获取有效回答')
+            'response': answer
         })
 
     except requests.Timeout:
