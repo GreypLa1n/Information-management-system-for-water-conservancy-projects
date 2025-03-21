@@ -1,5 +1,7 @@
 // 全局变量
 const WATER_LEVEL_THRESHOLD = 85.45;  // 水位警戒值
+const DATA_WINDOW_SIZE = 100;  // 显示的数据点数量
+let dataOffset = 0;  // 数据偏移量，从0开始
 let charts = {
     waterLevel: null,
     temperature: null,
@@ -7,6 +9,7 @@ let charts = {
     windPower: null
 };
 let lastUpdateTime = null;
+let isFirstLoad = true;  // 标记是否是第一次加载
 
 // 创建图表配置
 function createChartConfig(label, color) {
@@ -31,6 +34,14 @@ function createChartConfig(label, color) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    top: 20,     // 增加顶部内边距，为tooltip预留空间
+                    right: 10,
+                    bottom: 10,
+                    left: 10
+                }
+            },
             scales: {
                 y: {
                     beginAtZero: false
@@ -38,6 +49,18 @@ function createChartConfig(label, color) {
                 x: {
                     grid: {
                         display: false
+                    },
+                    ticks: {
+                        maxRotation: 0,  // 防止标签旋转
+                        autoSkip: true,  // 自动跳过重叠的标签
+                        maxTicksLimit: 8,  // 限制显示的标签数量
+                        callback: function (value, index, values) {
+                            // 只显示每隔几个点的时间
+                            if (index % Math.ceil(values.length / 8) === 0) {
+                                return this.getLabelForValue(value);
+                            }
+                            return '';
+                        }
                     }
                 }
             },
@@ -57,6 +80,7 @@ function createChartConfig(label, color) {
                     borderWidth: 1,
                     padding: 10,
                     displayColors: false,
+                    position: 'nearest',
                     callbacks: {
                         label: function (context) {
                             return `${context.dataset.label}: ${context.parsed.y.toFixed(2)}`;
@@ -74,7 +98,8 @@ function createChartConfig(label, color) {
             },
             animation: {
                 duration: 0
-            }
+            },
+            clip: false  // 禁用裁剪，允许内容超出图表边界
         }
     };
 }
@@ -119,9 +144,9 @@ function calculateYAxisRange(smoothData) {
         smoothData.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / smoothData.length
     );
 
-    // 使用均值±3个标准差作为范围，覆盖99.7%的数据
-    const min = Math.floor(mean - 3 * stdDev);
-    const max = Math.ceil(mean + 3 * stdDev);
+    // 使用均值±5个标准差作为范围，覆盖更大范围的数据
+    const min = Math.floor(mean - 5 * stdDev);
+    const max = Math.ceil(mean + 5 * stdDev);
 
     // 对特殊情况进行处理
     if (min === max) {
@@ -142,7 +167,7 @@ function calculateYAxisRange(smoothData) {
 // 更新实时数据
 async function updateRealtimeData() {
     try {
-        const response = await fetch('/api/realtime-data');
+        const response = await fetch(`/api/realtime-data?offset=${dataOffset}&limit=${DATA_WINDOW_SIZE}`);
         const data = await response.json();
 
         if (Array.isArray(data) && data.length > 0) {
@@ -153,15 +178,30 @@ async function updateRealtimeData() {
             document.getElementById('humidity').textContent = latestData.humidity.toFixed(1);
             document.getElementById('wind-power').textContent = latestData.windpower.toFixed(1);
 
-            // 反转数组以便按时间顺序显示
-            const sortedData = data.reverse();
+            // 获取第一条数据的完整日期，用于显示在左上角
+            const firstDate = new Date(data[0].timestamp);
+            const dateStr = firstDate.toLocaleDateString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+            // 更新左上角的日期显示
+            document.getElementById('current-date').textContent = dateStr;
 
-            // 准备数据
-            const timestamps = sortedData.map(item => new Date(item.timestamp).toLocaleTimeString());
-            const waterLevels = sortedData.map(item => item.water_level);
-            const temperatures = sortedData.map(item => item.temperature);
-            const humidities = sortedData.map(item => item.humidity);
-            const windPowers = sortedData.map(item => item.windpower);
+            // 准备数据，只使用时间部分
+            const timestamps = data.map(item => {
+                const date = new Date(item.timestamp);
+                return date.toLocaleTimeString('zh-CN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                });
+            });
+            const waterLevels = data.map(item => item.water_level);
+            const temperatures = data.map(item => item.temperature);
+            const humidities = data.map(item => item.humidity);
+            const windPowers = data.map(item => item.windpower);
 
             // 计算滚动平均值
             const waterLevelsSmooth = calculateRollingAverage(waterLevels);
@@ -186,7 +226,21 @@ async function updateRealtimeData() {
                 showAlert(`警告！当前水位 ${latestData.water_level.toFixed(2)}米 已超过警戒值 ${WATER_LEVEL_THRESHOLD}米`);
             }
 
+            // 如果数据少于窗口大小，说明已经到达末尾，重置offset
+            if (data.length < DATA_WINDOW_SIZE) {
+                dataOffset = 0;
+                console.log('已到达数据末尾，重置offset到起始位置');
+            } else {
+                // 每次只增加1，移动一个数据点
+                dataOffset += 1;
+            }
+
             lastUpdateTime = new Date();
+
+            // 输出调试信息
+            console.log('当前数据偏移量:', dataOffset);
+            console.log('数据更新时间:', lastUpdateTime);
+            console.log('数据点数量:', data.length);
         }
     } catch (error) {
         console.error('获取实时数据失败:', error);
@@ -195,14 +249,20 @@ async function updateRealtimeData() {
 
 // 更新单个图表
 function updateChart(chart, labels, data, range) {
+    if (!chart) return;  // 确保图表对象存在
+
+    // 更新数据
     chart.data.labels = labels;
     chart.data.datasets[0].data = data;
 
     // 更新y轴范围
-    chart.options.scales.y.min = range.min;
-    chart.options.scales.y.max = range.max;
+    if (range && chart.options.scales.y) {
+        chart.options.scales.y.min = range.min;
+        chart.options.scales.y.max = range.max;
+    }
 
-    chart.update();
+    // 强制更新图表
+    chart.update('none');  // 使用 'none' 模式来立即更新，不使用动画
 }
 
 // 获取历史数据
@@ -216,28 +276,50 @@ async function fetchHistoryData() {
     }
 
     try {
+        // 显示加载提示
+        const tbody = document.getElementById('history-data');
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">数据加载中，请稍候...</td></tr>';
+
         const response = await fetch(`/api/history-data?start=${startDate}&end=${endDate}`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const data = await response.json();
 
-        const tbody = document.getElementById('history-data');
+        if (!Array.isArray(data)) {
+            throw new Error('服务器返回的数据格式不正确');
+        }
+
         tbody.innerHTML = '';
 
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">没有找到符合条件的数据</td></tr>';
+            return;
+        }
+
+        // 使用文档片段来优化DOM操作
+        const fragment = document.createDocumentFragment();
         data.forEach(row => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${new Date(row.timestamp).toLocaleString()}</td>
-                <td>${row.water_level.toFixed(2)}</td>
-                <td>${row.temperature.toFixed(1)}</td>
-                <td>${row.humidity.toFixed(1)}</td>
-                <td>${row.windpower.toFixed(1)}</td>
-                <td>${row.winddirection}</td>
-                <td>${row.rains.toFixed(1)}</td>
+                <td>${row.water_level?.toFixed(2) ?? '--'}</td>
+                <td>${row.temperature?.toFixed(1) ?? '--'}</td>
+                <td>${row.humidity?.toFixed(1) ?? '--'}</td>
+                <td>${row.windpower?.toFixed(1) ?? '--'}</td>
+                <td>${row.winddirection || '--'}</td>
+                <td>${row.rains?.toFixed(1) ?? '--'}</td>
             `;
-            tbody.appendChild(tr);
+            fragment.appendChild(tr);
         });
+        tbody.appendChild(fragment);
+
     } catch (error) {
         console.error('获取历史数据失败:', error);
-        alert('获取历史数据失败，请稍后重试');
+        const tbody = document.getElementById('history-data');
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">获取数据失败: ${error.message}</td></tr>`;
     }
 }
 
@@ -264,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 开始定时更新数据
     updateRealtimeData();
-    setInterval(updateRealtimeData, 5000);  // 每5秒更新一次
+    setInterval(updateRealtimeData, 1000);  // 每5秒更新一次
 
     // 导航切换
     document.getElementById('realtime-link').addEventListener('click', (e) => {

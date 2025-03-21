@@ -43,32 +43,36 @@ def send_js(path):
 @app.route('/api/realtime-data')
 def get_realtime_data():
     try:
+        # 获取偏移量和限制数量参数
+        offset = request.args.get('offset', default=0, type=int)
+        limit = request.args.get('limit', default=100, type=int)
+        
         conn = connect_db()
         if conn is None:
             return jsonify({'error': '数据库连接失败'}), 500
             
         cursor = conn.cursor(pymysql.cursors.DictCursor)
+        
+        # 从指定偏移量开始获取数据
         cursor.execute("""
-            SELECT timestamp, water_level, temperature, humidity, 
-                   windpower, winddirection, rains 
-            FROM sensor_data 
-            ORDER BY timestamp DESC 
-            LIMIT 100
-        """)
+            SELECT timestamp, water_level, temperature, humidity, windpower
+            FROM sensor_data
+            ORDER BY timestamp ASC
+            LIMIT %s OFFSET %s
+        """, (limit, offset))
+        
         data = cursor.fetchall()
         cursor.close()
         conn.close()
-
-        if data:
-            # 确保时间戳是字符串格式
-            for row in data:
-                row['timestamp'] = row['timestamp'].strftime('%Y-%m-%d %H:%M:%S')
-            return jsonify(data)
-        else:
-            return jsonify({'error': '没有找到数据'}), 404
-
+        
+        # 确保时间戳是字符串格式
+        for row in data:
+            row['timestamp'] = row['timestamp'].strftime('%Y-%m-%d %H:%M:%S')
+        
+        return jsonify(data)
+        
     except Exception as e:
-        print(f"获取实时数据失败: {e}")
+        print('Error:', str(e))
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/history-data')
