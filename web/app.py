@@ -162,7 +162,7 @@ def deepseek_query():
             json={
                 'model': 'deepseek-r1:7b',
                 'prompt': prompt,
-                "stream": True
+                "stream": False
             },
         )
         
