@@ -1,0 +1,83 @@
+/* 全局样式 */
+body {
+    background-color: #f8f9fa;
+}
+
+/* 卡片样式 */
+.card {
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+/* 数据显示样式 */
+.display-4 {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #0d6efd;
+    margin: 0;
+}
+
+/* 表格样式 */
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.table-responsive {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+/* 导航栏样式 */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 按钮样式 */
+.btn-primary {
+    padding: 8px 20px;
+}
+
+/* 警告模态框样式 */
+.modal-header.bg-danger {
+    color: white;
+}
+
+/* 图表容器样式 */
+#water-level-chart,
+#temperature-chart,
+#humidity-chart,
+#wind-power-chart {
+    height: 300px !important;
+}
+
+/* 图表标题样式 */
+.card-title {
+    color: #495057;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .display-4 {
+        font-size: 2rem;
+    }
+
+    .card {
+        margin-bottom: 1rem;
+    }
+
+    #water-level-chart,
+    #temperature-chart,
+    #humidity-chart,
+    #wind-power-chart {
+        height: 250px !important;
+    }
+}
