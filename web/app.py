@@ -12,6 +12,7 @@ import pymysql
 from datetime import datetime, timedelta
 import configparser
 from dotenv import load_dotenv
+import requests
 
 # 获取当前文件所在目录的绝对路径
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -115,6 +116,59 @@ def get_history_data():
         return jsonify(data)
 
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/deepseek', methods=['POST'])
+def deepseek_query():
+    try:
+        data = request.get_json()
+        question = data.get('question')
+        
+        if not question:
+            return jsonify({'error': '请提供问题'}), 400
+
+        # 获取最近的数据作为上下文
+        conn = connect_db()
+        if not conn:
+            return jsonify({'error': '数据库连接失败'}), 500
+
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT timestamp, water_level, temperature, humidity, windpower
+            FROM sensor_data
+            ORDER BY timestamp DESC
+            LIMIT 100
+        """)
+        history_data = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
+        # 构建发送到 DeepSeek API 的请求
+        deepseek_url = os.getenv('DEEPSEEK_URL')
+        if not deepseek_url:
+            return jsonify({'error': 'DeepSeek API 配置缺失'}), 500
+
+        # 将历史数据和问题组合
+        context = str(history_data) + "\n" + question
+        
+        response = requests.post(
+            url=deepseek_url,
+            json={
+                'model': 'deepseek-r1:7b',
+                'prompt': context,
+                'stream': False
+            }
+        )
+        
+        response.raise_for_status()
+        result = response.json()
+        
+        return jsonify({
+            'response': result.get('response', '未能获取有效回答')
+        })
+
+    except Exception as e:
+        print(f"DeepSeek 查询错误: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

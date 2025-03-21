@@ -105,6 +105,49 @@
             display: flex;
             align-items: center;
         }
+
+        /* DeepSeek 模块样式 */
+        .deepseek-container {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .deepseek-input {
+            width: 100%;
+            min-height: 100px;
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            resize: vertical;
+        }
+
+        .deepseek-output {
+            width: 100%;
+            min-height: 200px;
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            background-color: white;
+            resize: vertical;
+        }
+
+        .btn-query {
+            background-color: #0d6efd;
+            color: white;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-query:hover {
+            background-color: #0b5ed7;
+        }
     </style>
 </head>
 
@@ -215,6 +258,28 @@
                                 <h5 class="card-title">风力变化趋势</h5>
                                 <div class="chart-container">
                                     <canvas id="wind-power-chart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DeepSeek 模块 -->
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">DeepSeek问答</h5>
+                                <div class="form-group">
+                                    <label for="deepseek-input" class="form-label">请输入您的问题：</label>
+                                    <textarea id="deepseek-input" class="deepseek-input form-control"
+                                        placeholder="例如：请分析最近的水位变化趋势"></textarea>
+                                </div>
+                                <button id="query-deepseek" class="btn btn-query">查询分析</button>
+                                <div class="form-group">
+                                    <label for="deepseek-output" class="form-label mt-3">分析结果：</label>
+                                    <textarea id="deepseek-output" class="deepseek-output form-control"
+                                        readonly></textarea>
                                 </div>
                             </div>
                         </div>

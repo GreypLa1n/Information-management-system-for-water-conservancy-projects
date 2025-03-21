@@ -339,6 +339,42 @@ function switchPanel(panelId) {
     document.getElementById('history-link').classList.toggle('active', panelId === 'history');
 }
 
+// DeepSeek 查询功能
+async function queryDeepseek() {
+    const input = document.getElementById('deepseek-input');
+    const output = document.getElementById('deepseek-output');
+    const question = input.value.trim();
+
+    if (!question) {
+        output.value = "请输入问题后再查询。";
+        return;
+    }
+
+    try {
+        // 显示加载状态
+        output.value = "正在分析数据，请稍候...";
+
+        // 获取最近的数据作为上下文
+        const response = await fetch('/api/deepseek', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ question: question })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        output.value = data.response || "分析过程中出现错误，请稍后重试。";
+    } catch (error) {
+        console.error('查询失败:', error);
+        output.value = "查询失败，请稍后重试。";
+    }
+}
+
 // 事件监听器
 document.addEventListener('DOMContentLoaded', () => {
     // 初始化图表
@@ -361,4 +397,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 历史数据查询
     document.getElementById('query-btn').addEventListener('click', fetchHistoryData);
+
+    // 添加回车键支持
+    const inputArea = document.getElementById('deepseek-input');
+    if (inputArea) {
+        inputArea.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                queryDeepseek();
+            }
+        });
+    }
 }); 
