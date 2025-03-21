@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+# @Time    : 2025/03/21 8:19
+# @Author  : Bruam1
+# @Email   : grey040612@gmail.com
+# @File    : app.py
+# @Software: Vscode
+
+
 from flask import Flask, jsonify, request, send_from_directory
 import os
 import pymysql
