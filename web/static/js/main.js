@@ -172,15 +172,15 @@ async function updateRealtimeData() {
 
         if (Array.isArray(data) && data.length > 0) {
             // 更新卡片数据（显示最新一条）
-            const latestData = data[0];
+            const latestData = data[data.length - 1];  // 使用最后一条数据而不是第一条
             document.getElementById('water-level').textContent = latestData.water_level.toFixed(2);
             document.getElementById('temperature').textContent = latestData.temperature.toFixed(1);
             document.getElementById('humidity').textContent = latestData.humidity.toFixed(1);
             document.getElementById('wind-power').textContent = latestData.windpower.toFixed(1);
 
-            // 获取第一条数据的完整日期，用于显示在左上角
-            const firstDate = new Date(data[0].timestamp);
-            const dateStr = firstDate.toLocaleDateString('zh-CN', {
+            // 获取最新数据的完整日期，用于显示在左上角
+            const latestDate = new Date(latestData.timestamp);
+            const dateStr = latestDate.toLocaleDateString('zh-CN', {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit'
