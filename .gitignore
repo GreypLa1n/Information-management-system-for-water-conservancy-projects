@@ -5,6 +5,8 @@ test.ipynb
 *.log
 hw.py
 log.*
+full-requirements.txt
 
 # 忽略虚拟环境
 .venv/
+web/.venv/
