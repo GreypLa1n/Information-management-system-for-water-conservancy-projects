@@ -6,6 +6,7 @@ test.ipynb
 hw.py
 log.*
 full-requirements.txt
+spider.py
 
 # 忽略虚拟环境
 .venv/
