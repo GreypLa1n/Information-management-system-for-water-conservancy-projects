@@ -7,6 +7,8 @@ hw.py
 log.*
 full-requirements.txt
 spider.py
+
+# 忽略 Python 缓存文件夹
 __pycache__/
 *.pyc
 *.pyo
