@@ -7,6 +7,9 @@ hw.py
 log.*
 full-requirements.txt
 spider.py
+__pycache__/
+*.pyc
+*.pyo
 
 # 忽略虚拟环境
 .venv/
