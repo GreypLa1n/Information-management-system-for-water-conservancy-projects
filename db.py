@@ -6,7 +6,7 @@
 # @Software: Vscode
 
 
-import mysql.connector
+import pymysql
 import pandas as pd
 import os
 import logging
@@ -22,13 +22,13 @@ logging.basicConfig(filename = "data_log.log", level = logging.INFO,
 # 数据库连接函数
 def connect_db():
     try:
-        return mysql.connector.connect(
+        return pymysql.connect(
             host = os.getenv("DB_HOST", "localhost"),
             user = os.getenv("DB_USER", "sensor_user"),
             password = os.getenv("DB_PASSWORD", ""),
             database = os.getenv("DB_NAME", "reservoir_db")
         )
-    except mysql.connector.Error as err:
+    except pymysql.Error as err:
         logging.error(f"数据库连接失败: {err}")
         return None
 
@@ -95,7 +95,7 @@ def insert_csv_data(csv_path):
         logging.info("CSV 数据成功插入数据库")
         print("CSV 数据已存入数据库")
 
-    except mysql.connector.Error as err:
+    except pymysql.Error as err:
         logging.error(f"MySQL 错误: {err}")
 
     finally:
