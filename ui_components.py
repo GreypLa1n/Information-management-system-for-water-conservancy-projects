@@ -32,9 +32,14 @@ alerted_window = None  # 当前警报窗口对象
 class HistoryDataViewer:
     """查看历史数据"""
     
-    def __init__(self, parent):
+    def __init__(self, parent, data_plotter=None):
         self.parent = parent
         self.window = None
+        self.data_plotter = data_plotter  # 数据可视化绘图器引用
+        
+    def set_data_plotter(self, plotter):
+        """设置数据绘图器引用"""
+        self.data_plotter = plotter
         
     def show(self):
         """显示历史数据窗口"""
@@ -45,19 +50,40 @@ class HistoryDataViewer:
         # 创建新窗口
         self.window = tk.Toplevel(self.parent)
         self.window.title("历史数据")
-        self.window.geometry("1200x600")  # 更大的窗口尺寸
+        self.window.geometry("1200x600")
         
         # 创建Frame容器
         frame = tk.Frame(self.window)
         frame.pack(expand=True, fill="both", padx=10, pady=10)
         
-        # 添加标题标签 - 初始标题
-        self.title_label = tk.Label(
+        # 添加当前位置信息
+        position_info = "未连接到可视化模块"
+        if self.data_plotter:
+            position = self.data_plotter.get_current_position()
+            current_index = position["current_index"]
+            max_index = position["max_iterations"]
+            current_timestamp = position["current_timestamp"]
+            
+            if current_timestamp:
+                position_info = f"当前位置: 索引 {current_index}/{max_index}, 时间: {current_timestamp}"
+            else:
+                position_info = f"当前位置: 索引 {current_index}/{max_index}"
+        
+        # 添加标题标签
+        title_label = tk.Label(
             frame, 
-            text="水利工程历史数据 (加载中...)", 
+            text="水利工程历史数据", 
             font=("SimHei", 14, "bold")
         )
-        self.title_label.pack(pady=(0, 10))
+        title_label.pack(pady=(0, 5))
+        
+        # 添加位置信息标签
+        self.position_label = tk.Label(
+            frame,
+            text=position_info,
+            font=("SimHei", 10)
+        )
+        self.position_label.pack(pady=(0, 10))
         
         # 创建数据展示区域
         data_frame = tk.Frame(frame)
@@ -121,17 +147,14 @@ class HistoryDataViewer:
         refresh_button = tk.Button(
             btn_frame, 
             text="刷新数据", 
-            command=lambda: self.load_data(tree),
+            command=lambda: self.refresh_data(tree),
             width=15,
             height=2
         )
         refresh_button.pack(side=tk.LEFT, padx=5)
         
-        # 加载数据
+        # 加载数据 - 只加载一次
         self.load_data(tree)
-        
-        # 每30秒自动刷新一次数据
-        self.schedule_refresh(tree)
     
     def load_data(self, tree):
         """从数据库加载历史数据并填充到TreeView"""
@@ -139,14 +162,31 @@ class HistoryDataViewer:
             # 清空现有数据
             for item in tree.get_children():
                 tree.delete(item)
-                
-            # 获取历史数据，不设置limit
-            rows = get_history_data()
             
-            if not rows:
+            # 计算要显示的数据条数
+            limit = 100  # 默认显示100条
+            if self.data_plotter:
+                position = self.data_plotter.get_current_position()
+                current_index = position["current_index"]
+                # 根据当前可视化索引计算显示的数据量
+                limit = 100 + current_index
+                
+            # 获取历史数据
+            all_rows = get_history_data()  # 数据已经是按时间降序排列的（从新到旧）
+            
+            if not all_rows:
                 messagebox.showinfo("无数据", "没有找到历史数据")
                 return
-                
+            
+            # 需要反转顺序，获取最早的记录
+            all_rows_reversed = list(reversed(all_rows))  # 反转为从旧到新
+            
+            # 截取最早的limit条数据
+            earliest_rows = all_rows_reversed[:limit]
+            
+            # 再次反转，使其按照时间从新到旧排序显示
+            rows = list(reversed(earliest_rows))
+            
             # 显示加载提示
             progress_window = tk.Toplevel(self.window)
             progress_window.title("加载进度")
@@ -154,8 +194,12 @@ class HistoryDataViewer:
             progress_window.transient(self.window)
             progress_window.grab_set()
             
-            progress_label = tk.Label(progress_window, text=f"正在加载 {len(rows)} 条数据...", pady=10)
+            progress_label = tk.Label(progress_window, text=f"正在加载 {len(rows)}/{len(all_rows)} 条数据...", pady=10)
             progress_label.pack()
+            
+            # 添加详细进度显示
+            detail_label = tk.Label(progress_window, text="", pady=5)
+            detail_label.pack()
             
             # 更新UI
             self.window.update()
@@ -166,7 +210,12 @@ class HistoryDataViewer:
             
             for i in range(0, total_rows, batch_size):
                 # 更新进度
-                progress_label.config(text=f"正在加载... {min(i + batch_size, total_rows)}/{total_rows}")
+                current_position = min(i + batch_size, total_rows)
+                progress_label.config(text=f"正在加载... {current_position}/{total_rows}")
+                
+                # 显示详细读取信息
+                detail_label.config(text=f"当前读取索引: {i}/{total_rows}, 读取范围: {i} 到 {current_position}")
+                
                 progress_window.update()
                 
                 # 插入一批数据
@@ -180,43 +229,31 @@ class HistoryDataViewer:
             # 关闭进度窗口
             progress_window.destroy()
             
-            # 获取数据的日期范围
+            # 获取显示的数据日期范围
             if rows:
-                from datetime import datetime
-                
-                # 获取第一条记录的时间和最后一条记录的时间
-                first_timestamp = rows[0][0]
-                last_timestamp = rows[-1][0]
-                
-                # 格式化时间
-                if isinstance(first_timestamp, datetime):
-                    first_time_str = first_timestamp.strftime("%Y-%m-%d %H:%M:%S")
-                else:
-                    first_time_str = str(first_timestamp)
-                    
-                if isinstance(last_timestamp, datetime):
-                    last_time_str = last_timestamp.strftime("%Y-%m-%d %H:%M:%S")
-                else:
-                    last_time_str = str(last_timestamp)
-                
-                # 更新标题显示日期范围
-                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                self.title_label.config(text=f"水利工程历史数据 (从 {first_time_str} 至 {current_time})")
+                first_row = rows[0]  # 显示的最新数据
+                last_row = rows[-1]  # 显示的最早数据
+                first_date = first_row[0]
+                last_date = last_row[0]
             
             # 显示加载完成信息
-            self.window.title(f"历史数据 (共 {len(rows)} 条记录)")
-            logger.info(f"历史数据已加载，共 {len(rows)} 条记录")
+            if self.data_plotter:
+                position = self.data_plotter.get_current_position()
+                current_index = position["current_index"]
+                self.window.title(f"历史数据 (显示 {len(rows)}/{len(all_rows)} 条记录，基于当前可视化索引 {current_index})")
+                # 更新位置信息标签
+                if rows:
+                    self.position_label.config(text=f"当前位置: 索引 {current_index}/{position['max_iterations']}, 显示数据量: {len(rows)}, 日期范围: {last_date} 至 {first_date}")
+                else:
+                    self.position_label.config(text=f"当前位置: 索引 {current_index}/{position['max_iterations']}, 显示数据量: {len(rows)}")
+            else:
+                self.window.title(f"历史数据 (显示 {len(rows)}/{len(all_rows)} 条记录)")
+                
+            logger.info(f"历史数据已加载，显示 {len(rows)}/{len(all_rows)} 条记录")
             
         except Exception as e:
             logger.error(f"加载历史数据失败: {e}")
             messagebox.showerror("数据错误", f"无法加载历史数据：{e}")
-    
-    def schedule_refresh(self, tree):
-        """定期刷新数据"""
-        if self.window and self.window.winfo_exists():
-            self.load_data(tree)
-            # 30秒后再次刷新
-            self.window.after(30000, lambda: self.schedule_refresh(tree))
     
     def export_data(self):
         """导出数据到CSV文件"""
@@ -224,12 +261,29 @@ class HistoryDataViewer:
             import pandas as pd
             from datetime import datetime
             
-            # 获取所有数据，不设置limit
-            rows = get_history_data()
+            # 计算要导出的数据条数
+            limit = 100  # 默认导出100条
+            if self.data_plotter:
+                position = self.data_plotter.get_current_position()
+                current_index = position["current_index"]
+                # 根据当前可视化索引计算导出的数据量
+                limit = 100 + current_index
             
-            if not rows:
+            # 获取历史数据
+            all_rows = get_history_data()  # 数据已经是按时间降序排列的（从新到旧）
+            
+            if not all_rows:
                 messagebox.showinfo("无数据", "没有找到可导出的数据")
                 return
+            
+            # 需要反转顺序，获取最早的记录
+            all_rows_reversed = list(reversed(all_rows))  # 反转为从旧到新
+            
+            # 截取最早的limit条数据
+            earliest_rows = all_rows_reversed[:limit]
+            
+            # 再次反转，使其按照时间从新到旧排序显示
+            rows = list(reversed(earliest_rows))
                 
             # 显示进度提示
             progress_window = tk.Toplevel(self.window)
@@ -238,53 +292,92 @@ class HistoryDataViewer:
             progress_window.transient(self.window)
             progress_window.grab_set()
             
-            progress_label = tk.Label(progress_window, text=f"正在导出数据，共 {len(rows)} 条...", pady=10)
+            progress_label = tk.Label(progress_window, text=f"正在导出数据，共 {len(rows)}/{len(all_rows)} 条...", pady=10)
             progress_label.pack()
+            
+            # 添加详细进度显示
+            detail_label = tk.Label(progress_window, text="正在准备导出...", pady=5)
+            detail_label.pack()
             
             # 更新UI
             self.window.update()
             
-            # 获取数据的日期范围
-            first_timestamp = rows[0][0]
-            last_timestamp = rows[-1][0]
-            
-            # 格式化时间用于文件名
-            if isinstance(first_timestamp, datetime):
-                first_date = first_timestamp.strftime("%Y%m%d")
-            else:
-                first_date = str(first_timestamp).replace("-", "").split(" ")[0]
-                
-            if isinstance(last_timestamp, datetime):
-                last_date = last_timestamp.strftime("%Y%m%d")
-            else:
-                last_date = str(last_timestamp).replace("-", "").split(" ")[0]
+            # 显示处理进度
+            total_rows = len(rows)
+            detail_label.config(text=f"正在处理 {total_rows} 条数据...")
+            progress_window.update()
             
             # 转换为DataFrame
             df = pd.DataFrame(rows, columns=["时间", "水位(m)", "温度(℃)", "湿度(%)", "风力(m/s)", "风向", "降雨量(mm)"])
             
+            # 获取日期范围并添加到文件名
+            first_date = ""
+            last_date = ""
+            if rows:
+                first_row = rows[0]  # 最新数据
+                last_row = rows[-1]  # 最早数据
+                first_date = str(first_row[0]).replace("-", "").replace(":", "").replace(" ", "_")[:8]
+                last_date = str(last_row[0]).replace("-", "").replace(":", "").replace(" ", "_")[:8]
+            
             # 生成文件名
             current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"水利数据_{first_date}至{last_date}_{current_time}.csv"
+            if first_date and last_date:
+                filename = f"水利数据_{first_date}至{last_date}_{current_time}.csv"
+            else:
+                filename = f"水利数据_{current_time}.csv"
+            
+            # 更新进度
+            detail_label.config(text=f"正在写入文件: {filename}")
+            progress_window.update()
             
             # 保存到文件
             df.to_csv(filename, index=False, encoding='utf-8-sig')
             
-            # 关闭进度窗口
-            progress_window.destroy()
+            # 更新完成状态
+            detail_label.config(text=f"导出完成: {filename}")
+            progress_window.update()
             
-            # 计算日期范围
-            date_range = ""
-            if isinstance(first_timestamp, datetime) and isinstance(last_timestamp, datetime):
-                first_str = first_timestamp.strftime("%Y-%m-%d")
-                last_str = last_timestamp.strftime("%Y-%m-%d")
-                date_range = f"日期范围：{first_str} 至 {last_str}\n"
+            # 延迟一小段时间显示完成状态
+            self.window.after(1000, progress_window.destroy)
             
-            messagebox.showinfo("导出成功", f"数据已成功导出到: {filename}\n{date_range}共导出 {len(rows)} 条记录")
-            logger.info(f"数据已导出到: {filename}，共 {len(rows)} 条记录")
+            # 准备显示的消息
+            date_range_info = ""
+            if rows:
+                first_date_display = str(first_row[0])
+                last_date_display = str(last_row[0])
+                date_range_info = f"日期范围: {first_date_display} 至 {last_date_display}\n"
+            
+            if self.data_plotter:
+                position = self.data_plotter.get_current_position()
+                current_index = position["current_index"]
+                message = f"数据已成功导出到: {filename}\n{date_range_info}基于当前可视化索引 {current_index}，共导出 {len(rows)}/{len(all_rows)} 条记录"
+            else:
+                message = f"数据已成功导出到: {filename}\n{date_range_info}共导出 {len(rows)}/{len(all_rows)} 条记录"
+                
+            messagebox.showinfo("导出成功", message)
+            logger.info(f"数据已导出到: {filename}，共导出 {len(rows)}/{len(all_rows)} 条记录")
             
         except Exception as e:
             logger.error(f"导出数据失败: {e}")
             messagebox.showerror("导出错误", f"导出数据失败: {e}")
+
+    def refresh_data(self, tree):
+        """刷新数据，根据当前可视化索引重新加载数据"""
+        if self.data_plotter:
+            # 获取最新的可视化索引
+            position = self.data_plotter.get_current_position()
+            current_index = position["current_index"]
+            
+            # 更新位置信息标签
+            self.position_label.config(text=f"当前位置: 索引 {current_index}/{position['max_iterations']}, 正在刷新数据...")
+            self.window.update()
+            
+            # 重新加载数据
+            self.load_data(tree)
+        else:
+            messagebox.showinfo("提示", "未连接到可视化模块，无法获取最新索引")
+            # 仍然刷新数据
+            self.load_data(tree)
 
 
 class DataPlotter:
@@ -293,15 +386,21 @@ class DataPlotter:
     def __init__(self, figure, axes):
         self.fig = figure
         self.ax1, self.ax2, self.ax3, self.ax4 = axes
+        self.current_index = 0  # 当前数据索引位置
+        self.max_iterations = 0  # 总数据点数量
+        self.current_timestamp = None  # 当前显示的时间戳
         
     def update_plots(self, df, year, subset_size=AVG_DATA_POINTS):
         """更新所有图表"""
         
         # 处理所有数据
-        max_iterations = len(df)
+        self.max_iterations = len(df)
         
-        for i in range(0, max_iterations):
+        for i in range(0, self.max_iterations):
             try:
+                # 更新当前索引
+                self.current_index = i
+                
                 # 清除旧图表
                 self.ax1.clear()
                 self.ax2.clear()
@@ -313,11 +412,15 @@ class DataPlotter:
                 if subset.empty:
                     continue
                 
+                # 记录当前时间戳
+                if not subset.empty:
+                    self.current_timestamp = subset['timestamp'].iloc[-1]
+                
                 # 输出所有日志，不限制频率
-                print(f"当前循环索引: {i}/{max_iterations}, 子集范围: {i} 到 {i + subset_size}")
+                print(f"当前循环索引: {i}/{self.max_iterations}, 子集范围: {i} 到 {i + subset_size}")
                     
                 # 更新图表标题
-                self.fig.suptitle(f"{year} 年数据分析", fontsize=14, fontweight="bold", x=0.1, y=0.99)
+                self.fig.suptitle(f"{year} 年数据分析 (数据索引: {i}/{self.max_iterations})", fontsize=14, fontweight="bold", x=0.1, y=0.99)
                 
                 # 绘制各种图表
                 self._plot_water_level(subset)
@@ -340,13 +443,24 @@ class DataPlotter:
                 # 刷新画布
                 self.fig.canvas.draw()
                 
-                # 降低睡眠时间以提高响应性，但保留一些延迟以展示动画效果
-                time.sleep(0.05)  # 从0.1秒降低到0.05秒
+                time.sleep(0.1)
                 
             except Exception as e:
                 logger.error(f"绘图过程中出错: {e}")
                 # 如果发生错误，不要让整个进程卡死
                 break
+                
+    def get_current_position(self):
+        """获取当前数据位置信息
+        
+        Returns:
+            dict: 包含当前索引、最大索引和当前时间戳的字典
+        """
+        return {
+            "current_index": self.current_index,
+            "max_iterations": self.max_iterations,
+            "current_timestamp": self.current_timestamp
+        }
     
     def _check_water_alert(self, timestamp, water_level):
         """检查单个水位数据点是否需要发出警报"""
@@ -464,10 +578,6 @@ class WaterLevelMonitor:
         """监测水位是否需要发出警报"""
         global alerted_timestamps, alerted_window
         
-        # 检查是否有任何水位值超过警戒阈值
-        max_water_level = max(water_levels) if water_levels else 0
-        if max_water_level > self.threshold:
-            logger.info(f"水位监控检测到异常水位值: {max_water_level}米 > {self.threshold}米")
         
         for i, water_level in enumerate(water_levels):
             # 检查水位是否超过警戒值且未报警过

@@ -73,8 +73,11 @@ class Water_Data_Visualization:
         # 创建图表
         fig, axes, canvas = create_charts(chart_frame)
         
+        # 创建数据绘图器
+        data_plotter = DataPlotter(fig, axes)
+        
         # 添加历史数据查看按钮
-        history_viewer = HistoryDataViewer(self.root)
+        history_viewer = HistoryDataViewer(self.root, data_plotter)
         history_button = tk.Button(
             chart_frame, 
             text="查看历史数据", 
@@ -92,9 +95,6 @@ class Water_Data_Visualization:
         main_frame.columnconfigure(0, weight=4)
         main_frame.columnconfigure(1, weight=2)
         main_frame.rowconfigure(0, weight=1)
-        
-        # 创建数据绘图器
-        data_plotter = DataPlotter(fig, axes)
         
         # 创建水位监控器
         water_monitor = WaterLevelMonitor(self.root)

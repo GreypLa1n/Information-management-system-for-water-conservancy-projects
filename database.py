@@ -91,39 +91,19 @@ class Database:
             logger.error(f"获取可视化数据失败: {e}")
             return None
     
-    def get_history_data(self, limit=None, end_time=None):
-        """获取历史数据
-        
-        Args:
-            limit: 可选参数，限制返回数据的数量。如果为None，则返回所有数据。
-            end_time: 可选参数，指定结束时间。如果提供，则只返回该时间之前的数据。
-        """
+    def get_history_data(self):
+        """获取历史数据"""
         try:
             conn = self.connect()
             cursor = conn.cursor()
             
-            # 构建基本查询
-            base_query = """
+            query = """
                 SELECT timestamp, water_level, temperature, humidity, 
                 windpower, winddirection, rains 
                 FROM sensor_data 
+                ORDER BY timestamp DESC
             """
-            
-            # 根据是否有结束时间添加条件
-            if end_time:
-                query = base_query + " WHERE timestamp <= %s ORDER BY timestamp ASC"
-                if limit:
-                    query += " LIMIT %s"
-                    cursor.execute(query, (end_time, limit))
-                else:
-                    cursor.execute(query, (end_time,))
-            else:
-                query = base_query + " ORDER BY timestamp ASC"
-                if limit:
-                    query += " LIMIT %s"
-                    cursor.execute(query, (limit,))
-                else:
-                    cursor.execute(query)
+            cursor.execute(query)
                 
             rows = cursor.fetchall()
             cursor.close()
@@ -149,6 +129,6 @@ def get_data_for_visualization():
     """获取可视化数据"""
     return db.get_data_for_visualization()
 
-def get_history_data(limit=None, end_time=None):
+def get_history_data():
     """获取历史数据"""
-    return db.get_history_data(limit, end_time) 
+    return db.get_history_data()
