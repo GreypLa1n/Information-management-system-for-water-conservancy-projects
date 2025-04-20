@@ -6,6 +6,7 @@
 # @Software: Vscode
 
 import tkinter as tk
+from tkinter import messagebox
 import threading
 import logging
 import pandas as pd
@@ -58,6 +59,9 @@ class Water_Data_Visualization:
         self.root.title("水利工程数据可视化与监控系统")
         self.root.geometry("2400x960")
         
+        # 注册窗口关闭事件
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        
         # 创建主框架
         main_frame = tk.Frame(self.root)
         main_frame.pack(fill=tk.BOTH, expand=True)
@@ -103,11 +107,21 @@ class Water_Data_Visualization:
         ).start()
     
     def update_data_thread(self, data_plotter, water_monitor):
-        """数据更新线程"""
+        """数据更新线程
+        
+        Args:
+            data_plotter: 数据绘图器对象
+            water_monitor: 水位监控器对象
+        """
         logger.info("数据更新线程已启动")
         
         while True:
             try:
+                # 检查主窗口是否仍然存在
+                if not self.root or not self.root.winfo_exists():
+                    logger.info("应用程序窗口已关闭，数据更新线程退出")
+                    break
+                
                 # 获取可视化数据
                 data = get_data_for_visualization()
                 
@@ -116,7 +130,13 @@ class Water_Data_Visualization:
                     timestamps, water_levels, temperatures, humidities, windpowers = data
                     
                     # 转换为DataFrame以便处理
-                    df = pd.DataFrame({"timestamp": timestamps, "water_level": water_levels, "temperature": temperatures, "humidity": humidities, "windpower": windpowers})
+                    df = pd.DataFrame({
+                        "timestamp": timestamps,
+                        "water_level": water_levels,
+                        "temperature": temperatures,
+                        "humidity": humidities,
+                        "windpower": windpowers
+                    })
                     
                     # 获取年份
                     year = df["timestamp"].iloc[0].year if not df.empty else datetime.datetime.now().year
@@ -127,16 +147,57 @@ class Water_Data_Visualization:
                     df['humidity_smooth'] = df['humidity'].rolling(window=3, min_periods=1).mean()
                     df['windpower_smooth'] = df['windpower'].rolling(window=3, min_periods=1).mean()
                     
-                    # 更新图表
-                    data_plotter.update_plots(df, year)
+                    # 再次检查主窗口是否存在
+                    if not self.root or not self.root.winfo_exists():
+                        logger.info("应用程序窗口已关闭，数据更新线程退出")
+                        break
                     
-                    # 检查是否需要发出水位警报
-                    water_monitor.check_alerts(timestamps, water_levels)
+                    try:
+                        # 直接更新图表，不创建额外线程
+                        data_plotter.update_plots(df, year)
+                        
+                        # 执行警告检测
+                        water_monitor.check_alerts(timestamps, water_levels)
+                        
+                    except Exception as e:
+                        logger.error(f"图表更新或警报检测出错: {e}")
+                        if "application has been destroyed" in str(e) or "winfo" in str(e):
+                            logger.info("应用程序已关闭，数据更新线程退出")
+                            break
                     
             except Exception as e:
                 logger.error(f"更新数据线程出错: {e}")
+                # 检查错误是否与应用程序销毁有关
+                if "application has been destroyed" in str(e) or "winfo" in str(e):
+                    logger.info("应用程序已关闭，数据更新线程退出")
+                    break
                 # 休眠一段时间后重试
                 time.sleep(5)
+    
+    def on_closing(self):
+        """窗口关闭处理"""
+        logger.info("应用程序正在关闭")
+        
+        # 执行清理工作
+        try:
+            # 记录关闭事件
+            logger.info("正在清理资源...")
+            
+            # 销毁窗口
+            self.root.destroy()
+            logger.info("应用程序已关闭")
+            
+            # 给日志记录器一点时间完成写入
+            time.sleep(0.2)
+            
+            # 强制终止程序
+            import os
+            os._exit(0)  # 强制退出，确保所有线程都被终止
+        except Exception as e:
+            logger.error(f"关闭应用程序时出错: {e}")
+            # 确保程序退出
+            import sys
+            sys.exit(1)
     
     def run(self):
         """运行应用程序"""

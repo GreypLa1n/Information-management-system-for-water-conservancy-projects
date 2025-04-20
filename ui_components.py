@@ -4,6 +4,7 @@ import threading
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import pandas as pd
+import configparser
 import logging
 import time
 import mplcursors
@@ -13,8 +14,14 @@ from email_alerts import check_alert_window, send_email_alert
 # 配置日志
 logger = logging.getLogger('ui_components')
 
+# 读取配置文件
+config = configparser.ConfigParser()
+config.read("./config.cfg", encoding="UTF-8")
+config_email = config["Email_Setting"]
+WATER_LEVEL_THRESHOLD = float(config_email["WarningLevel"])  # 警戒水位
+print(WATER_LEVEL_THRESHOLD)
+
 # 全局常量
-WATER_LEVEL_THRESHOLD = 85.45  # 水位警戒值（米）
 AVG_DATA_POINTS = 100  # 数据平滑窗口大小
 REFRESH_INTERVAL = 0.1  # 刷新间隔（秒）
 
@@ -38,22 +45,39 @@ class HistoryDataViewer:
         # 创建新窗口
         self.window = tk.Toplevel(self.parent)
         self.window.title("历史数据")
-        self.window.geometry("800x400")
+        self.window.geometry("1200x600")  # 更大的窗口尺寸
         
         # 创建Frame容器
         frame = tk.Frame(self.window)
-        frame.pack(expand=True, fill="both")
+        frame.pack(expand=True, fill="both", padx=10, pady=10)
+        
+        # 添加标题标签 - 初始标题
+        self.title_label = tk.Label(
+            frame, 
+            text="水利工程历史数据 (加载中...)", 
+            font=("SimHei", 14, "bold")
+        )
+        self.title_label.pack(pady=(0, 10))
+        
+        # 创建数据展示区域
+        data_frame = tk.Frame(frame)
+        data_frame.pack(expand=True, fill="both")
         
         # 添加垂直滚动条
-        y_scroll = tk.Scrollbar(frame, orient="vertical")
+        y_scroll = tk.Scrollbar(data_frame, orient="vertical")
         y_scroll.pack(side="right", fill="y")
+        
+        # 添加水平滚动条
+        x_scroll = tk.Scrollbar(data_frame, orient="horizontal")
+        x_scroll.pack(side="bottom", fill="x")
         
         # 创建TreeView控件
         tree = ttk.Treeview(
-            frame, 
+            data_frame, 
             columns=("时间", "水位(m)", "温度(℃)", "湿度(%)", "风力(m/s)", "风向", "降雨量(mm)"), 
             show="headings",
-            yscrollcommand=y_scroll.set
+            yscrollcommand=y_scroll.set,
+            xscrollcommand=x_scroll.set
         )
         
         # 设置列标题
@@ -77,14 +101,31 @@ class HistoryDataViewer:
         # 设置滚动条
         tree.pack(expand=True, fill="both")
         y_scroll.config(command=tree.yview)
+        x_scroll.config(command=tree.xview)
+        
+        # 创建按钮区域
+        btn_frame = tk.Frame(frame)
+        btn_frame.pack(pady=10)
         
         # 添加导出按钮
         export_button = tk.Button(
-            self.window, 
+            btn_frame, 
             text="导出数据", 
-            command=self.export_data
+            command=self.export_data,
+            width=15,
+            height=2
         )
-        export_button.pack(pady=5)
+        export_button.pack(side=tk.LEFT, padx=5)
+        
+        # 添加刷新按钮
+        refresh_button = tk.Button(
+            btn_frame, 
+            text="刷新数据", 
+            command=lambda: self.load_data(tree),
+            width=15,
+            height=2
+        )
+        refresh_button.pack(side=tk.LEFT, padx=5)
         
         # 加载数据
         self.load_data(tree)
@@ -99,14 +140,72 @@ class HistoryDataViewer:
             for item in tree.get_children():
                 tree.delete(item)
                 
-            # 获取历史数据
-            rows = get_history_data(limit=100)
+            # 获取历史数据，不设置limit
+            rows = get_history_data()
             
-            # 填充数据
-            for row in rows:
-                tree.insert("", "end", values=row)
+            if not rows:
+                messagebox.showinfo("无数据", "没有找到历史数据")
+                return
                 
-            logger.info("历史数据已加载")
+            # 显示加载提示
+            progress_window = tk.Toplevel(self.window)
+            progress_window.title("加载进度")
+            progress_window.geometry("300x100")
+            progress_window.transient(self.window)
+            progress_window.grab_set()
+            
+            progress_label = tk.Label(progress_window, text=f"正在加载 {len(rows)} 条数据...", pady=10)
+            progress_label.pack()
+            
+            # 更新UI
+            self.window.update()
+            
+            # 使用批量插入提高性能
+            batch_size = 100
+            total_rows = len(rows)
+            
+            for i in range(0, total_rows, batch_size):
+                # 更新进度
+                progress_label.config(text=f"正在加载... {min(i + batch_size, total_rows)}/{total_rows}")
+                progress_window.update()
+                
+                # 插入一批数据
+                batch = rows[i:i + batch_size]
+                for row in batch:
+                    tree.insert("", "end", values=row)
+                
+                # 更新UI
+                self.window.update()
+            
+            # 关闭进度窗口
+            progress_window.destroy()
+            
+            # 获取数据的日期范围
+            if rows:
+                from datetime import datetime
+                
+                # 获取第一条记录的时间和最后一条记录的时间
+                first_timestamp = rows[0][0]
+                last_timestamp = rows[-1][0]
+                
+                # 格式化时间
+                if isinstance(first_timestamp, datetime):
+                    first_time_str = first_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+                else:
+                    first_time_str = str(first_timestamp)
+                    
+                if isinstance(last_timestamp, datetime):
+                    last_time_str = last_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+                else:
+                    last_time_str = str(last_timestamp)
+                
+                # 更新标题显示日期范围
+                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                self.title_label.config(text=f"水利工程历史数据 (从 {first_time_str} 至 {current_time})")
+            
+            # 显示加载完成信息
+            self.window.title(f"历史数据 (共 {len(rows)} 条记录)")
+            logger.info(f"历史数据已加载，共 {len(rows)} 条记录")
             
         except Exception as e:
             logger.error(f"加载历史数据失败: {e}")
@@ -125,20 +224,63 @@ class HistoryDataViewer:
             import pandas as pd
             from datetime import datetime
             
-            # 获取数据
-            rows = get_history_data(limit=1000)
+            # 获取所有数据，不设置limit
+            rows = get_history_data()
+            
+            if not rows:
+                messagebox.showinfo("无数据", "没有找到可导出的数据")
+                return
+                
+            # 显示进度提示
+            progress_window = tk.Toplevel(self.window)
+            progress_window.title("导出进度")
+            progress_window.geometry("300x100")
+            progress_window.transient(self.window)
+            progress_window.grab_set()
+            
+            progress_label = tk.Label(progress_window, text=f"正在导出数据，共 {len(rows)} 条...", pady=10)
+            progress_label.pack()
+            
+            # 更新UI
+            self.window.update()
+            
+            # 获取数据的日期范围
+            first_timestamp = rows[0][0]
+            last_timestamp = rows[-1][0]
+            
+            # 格式化时间用于文件名
+            if isinstance(first_timestamp, datetime):
+                first_date = first_timestamp.strftime("%Y%m%d")
+            else:
+                first_date = str(first_timestamp).replace("-", "").split(" ")[0]
+                
+            if isinstance(last_timestamp, datetime):
+                last_date = last_timestamp.strftime("%Y%m%d")
+            else:
+                last_date = str(last_timestamp).replace("-", "").split(" ")[0]
             
             # 转换为DataFrame
             df = pd.DataFrame(rows, columns=["时间", "水位(m)", "温度(℃)", "湿度(%)", "风力(m/s)", "风向", "降雨量(mm)"])
             
             # 生成文件名
-            filename = f"水利数据_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"水利数据_{first_date}至{last_date}_{current_time}.csv"
             
             # 保存到文件
             df.to_csv(filename, index=False, encoding='utf-8-sig')
             
-            messagebox.showinfo("导出成功", f"数据已成功导出到: {filename}")
-            logger.info(f"数据已导出到: {filename}")
+            # 关闭进度窗口
+            progress_window.destroy()
+            
+            # 计算日期范围
+            date_range = ""
+            if isinstance(first_timestamp, datetime) and isinstance(last_timestamp, datetime):
+                first_str = first_timestamp.strftime("%Y-%m-%d")
+                last_str = last_timestamp.strftime("%Y-%m-%d")
+                date_range = f"日期范围：{first_str} 至 {last_str}\n"
+            
+            messagebox.showinfo("导出成功", f"数据已成功导出到: {filename}\n{date_range}共导出 {len(rows)} 条记录")
+            logger.info(f"数据已导出到: {filename}，共 {len(rows)} 条记录")
             
         except Exception as e:
             logger.error(f"导出数据失败: {e}")
@@ -154,30 +296,117 @@ class DataPlotter:
         
     def update_plots(self, df, year, subset_size=AVG_DATA_POINTS):
         """更新所有图表"""
-        for i in range(0, len(df)):
-            # 清除旧图表
-            self.ax1.clear()
-            self.ax2.clear()
-            self.ax3.clear()
-            self.ax4.clear()
-            
-            # 获取当前数据子集
-            subset = df.iloc[i:i + subset_size]
-            if subset.empty:
-                continue
+        
+        # 处理所有数据
+        max_iterations = len(df)
+        
+        for i in range(0, max_iterations):
+            try:
+                # 清除旧图表
+                self.ax1.clear()
+                self.ax2.clear()
+                self.ax3.clear()
+                self.ax4.clear()
                 
-            # 更新图表标题
-            self.fig.suptitle(f"{year} 年数据分析", fontsize=14, fontweight="bold", x=0.1, y=0.99)
+                # 获取当前数据子集
+                subset = df.iloc[i:i + subset_size]
+                if subset.empty:
+                    continue
+                
+                # 输出所有日志，不限制频率
+                print(f"当前循环索引: {i}/{max_iterations}, 子集范围: {i} 到 {i + subset_size}")
+                    
+                # 更新图表标题
+                self.fig.suptitle(f"{year} 年数据分析", fontsize=14, fontweight="bold", x=0.1, y=0.99)
+                
+                # 绘制各种图表
+                self._plot_water_level(subset)
+                self._plot_temperature(subset)
+                self._plot_humidity(subset)
+                self._plot_windpower(subset)
+                
+                # 检查是否需要发出水位警报
+                # 获取最新的水位数据
+                latest_water_level = subset['water_level'].iloc[-1] if not subset.empty else None
+                latest_timestamp = subset['timestamp'].iloc[-1] if not subset.empty else None
+                
+                if latest_water_level is not None and latest_timestamp is not None:
+                    # 与警戒水位进行比较
+                    print(f"索引 {i} 的最新水位: {latest_water_level}, 时间: {latest_timestamp}")
+                    if latest_water_level > WATER_LEVEL_THRESHOLD:
+                        # 创建临时列表传递给警报检测函数
+                        self._check_water_alert(latest_timestamp, latest_water_level)
+                
+                # 刷新画布
+                self.fig.canvas.draw()
+                
+                # 降低睡眠时间以提高响应性，但保留一些延迟以展示动画效果
+                time.sleep(0.05)  # 从0.1秒降低到0.05秒
+                
+            except Exception as e:
+                logger.error(f"绘图过程中出错: {e}")
+                # 如果发生错误，不要让整个进程卡死
+                break
+    
+    def _check_water_alert(self, timestamp, water_level):
+        """检查单个水位数据点是否需要发出警报"""
+        global alerted_timestamps, alerted_window
+        
+        # 检查水位是否超过警戒值且未报警过
+        if water_level > WATER_LEVEL_THRESHOLD and timestamp not in alerted_timestamps:
+            # 如果有之前的弹窗未关闭，先关闭
+            if alerted_window and alerted_window.winfo_exists():
+                alerted_window.destroy()
             
-            # 绘制各种图表
-            self._plot_water_level(subset)
-            self._plot_temperature(subset)
-            self._plot_humidity(subset)
-            self._plot_windpower(subset)
+            # 记录报警时间戳，防止重复报警
+            alerted_timestamps.add(timestamp)
             
-            # 刷新画布
-            self.fig.canvas.draw()
-            time.sleep(REFRESH_INTERVAL)
+            # 创建警报弹窗
+            warning_message = f"警告！\n时间：{timestamp}\n水位过高：{water_level}米\n请检查系统！"
+            
+            # 创建弹窗
+            alert_window = tk.Toplevel(self.fig.canvas.get_tk_widget().master)
+            alert_window.title("水位警告")
+            alert_window.lift()  # 保证弹窗显示在最前面
+            alert_window.attributes('-topmost', True)  # 置顶
+            
+            # 警告标签
+            alert_label = tk.Label(
+                alert_window, 
+                text=warning_message, 
+                font=("SimHei", 12),
+                padx=50, 
+                pady=50
+            )
+            alert_label.pack()
+            
+            # 确认按钮
+            def close_alert():
+                alert_window.destroy()
+                global alerted_window
+                alerted_window = None
+                
+            confirm_button = tk.Button(
+                alert_window, 
+                text="确认", 
+                command=close_alert,
+                width=10,
+                height=2
+            )
+            confirm_button.pack(pady=10)
+            
+            # 启动30秒后检查弹窗状态的线程
+            threading.Thread(
+                target=check_alert_window, 
+                args=(alert_window, timestamp, water_level), 
+                daemon=True
+            ).start()
+            
+            # 更新全局弹窗对象
+            alerted_window = alert_window
+            
+            # 记录日志
+            logger.warning(f"水位警告已触发：水位={water_level}米，时间={timestamp}")
             
     def _plot_water_level(self, data):
         """绘制水位趋势图"""
@@ -235,6 +464,11 @@ class WaterLevelMonitor:
         """监测水位是否需要发出警报"""
         global alerted_timestamps, alerted_window
         
+        # 检查是否有任何水位值超过警戒阈值
+        max_water_level = max(water_levels) if water_levels else 0
+        if max_water_level > self.threshold:
+            logger.info(f"水位监控检测到异常水位值: {max_water_level}米 > {self.threshold}米")
+        
         for i, water_level in enumerate(water_levels):
             # 检查水位是否超过警戒值且未报警过
             if water_level > self.threshold and timestamps[i] not in alerted_timestamps:
@@ -267,7 +501,6 @@ class WaterLevelMonitor:
             alert_window, 
             text=warning_message, 
             font=("SimHei", 12),
-            fg="red",
             padx=50, 
             pady=50
         )
