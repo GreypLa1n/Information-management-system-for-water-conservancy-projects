@@ -19,7 +19,6 @@ config = configparser.ConfigParser()
 config.read("./config.cfg", encoding="UTF-8")
 config_email = config["Email_Setting"]
 WATER_LEVEL_THRESHOLD = float(config_email["WarningLevel"])  # 警戒水位
-print(WATER_LEVEL_THRESHOLD)
 
 # 全局常量
 AVG_DATA_POINTS = 100  # 数据平滑窗口大小
@@ -134,23 +133,11 @@ class HistoryDataViewer:
         btn_frame.pack(pady=10)
         
         # 添加导出按钮
-        export_button = tk.Button(
-            btn_frame, 
-            text="导出数据", 
-            command=self.export_data,
-            width=15,
-            height=2
-        )
+        export_button = tk.Button(btn_frame, text="导出数据", command=self.export_data,width=15,height=2)
         export_button.pack(side=tk.LEFT, padx=5)
         
         # 添加刷新按钮
-        refresh_button = tk.Button(
-            btn_frame, 
-            text="刷新数据", 
-            command=lambda: self.refresh_data(tree),
-            width=15,
-            height=2
-        )
+        refresh_button = tk.Button(btn_frame, text="刷新数据", command=lambda: self.refresh_data(tree), width=15, height=2)
         refresh_button.pack(side=tk.LEFT, padx=5)
         
         # 加载数据 - 只加载一次
@@ -169,7 +156,7 @@ class HistoryDataViewer:
                 position = self.data_plotter.get_current_position()
                 current_index = position["current_index"]
                 # 根据当前可视化索引计算显示的数据量
-                limit = 100 + current_index
+                limit += current_index
                 
             # 获取历史数据
             all_rows = get_history_data()  # 数据已经是按时间降序排列的（从新到旧）
@@ -231,8 +218,8 @@ class HistoryDataViewer:
             
             # 获取显示的数据日期范围
             if rows:
-                first_row = rows[0]  # 显示的最新数据
-                last_row = rows[-1]  # 显示的最早数据
+                first_row = rows[0]  # 显示的最晚读入的数据
+                last_row = rows[-1]  # 显示的最早读入的数据
                 first_date = first_row[0]
                 last_date = last_row[0]
             
@@ -420,7 +407,7 @@ class DataPlotter:
                 print(f"当前循环索引: {i}/{self.max_iterations}, 子集范围: {i} 到 {i + subset_size}")
                     
                 # 更新图表标题
-                self.fig.suptitle(f"{year} 年数据分析 (数据索引: {i}/{self.max_iterations})", fontsize=14, fontweight="bold", x=0.1, y=0.99)
+                self.fig.suptitle(f"{year} 年", fontsize=14, fontweight="bold", x=0.1, y=0.99)
                 
                 # 绘制各种图表
                 self._plot_water_level(subset)
@@ -451,11 +438,7 @@ class DataPlotter:
                 break
                 
     def get_current_position(self):
-        """获取当前数据位置信息
-        
-        Returns:
-            dict: 包含当前索引、最大索引和当前时间戳的字典
-        """
+        """获取当前数据位置信息"""
         return {
             "current_index": self.current_index,
             "max_iterations": self.max_iterations,
