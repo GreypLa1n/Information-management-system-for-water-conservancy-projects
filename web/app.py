@@ -6,18 +6,25 @@
 # @Software: Vscode
 
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, session, redirect, url_for, render_template
 import os
 import pymysql
 from datetime import datetime, timedelta
 import configparser
 from dotenv import load_dotenv
 import requests
+import hashlib
+import secrets
+import functools
 
 # 获取当前文件所在目录的绝对路径
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 app = Flask(__name__)
+# 设置密钥用于会话加密
+app.secret_key = secrets.token_hex(16)
+# 设置会话生命周期为1小时
+app.permanent_session_lifetime = timedelta(hours=1)
 
 # 加载环境变量
 load_dotenv()
@@ -25,18 +32,73 @@ load_dotenv()
 # 数据库连接函数
 def connect_db():
     try:
-        return pymysql.connect(
+        conn = pymysql.connect(
             host=os.getenv("DB_HOST", "localhost"),
             user=os.getenv("DB_USER", "sensor_user"),
             password=os.getenv("DB_PASSWORD", ""),
             database=os.getenv("DB_NAME", "reservoir_db")
         )
+        return conn
     except Exception as e:
         print(f"数据库连接失败: {e}")
         return None
 
+# 登录验证装饰器
+def login_required(f):
+    @functools.wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect('/login')
+        return f(*args, **kwargs)
+    return decorated_function
+
+# 登录路由
+@app.route('/login', methods=['GET'])
+def login_page():
+    return send_from_directory(current_dir, 'login.html')
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    # 获取表单数据
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    timestamp = data.get('timestamp')
+    
+    # 验证请求时间戳，防止重放攻击
+    current_time = datetime.now().timestamp() * 1000  # 转换为毫秒
+    if timestamp and abs(current_time - timestamp) > 300000:  # 允许5分钟的时间差
+        return jsonify({'success': False, 'message': '请求已过期，请刷新页面重试'}), 401
+    
+    # 对密码进行SHA-256哈希
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    
+    # 简单验证（固定账号密码为admin）
+    if username == 'admin' and password == 'admin':
+        # 设置会话
+        session.permanent = True
+        session['user_id'] = username
+        session['login_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # 记录登录日志（可选）
+        print(f"用户 {username} 成功登录，时间: {session['login_time']}")
+        
+        return jsonify({'success': True, 'message': '登录成功'})
+    else:
+        # 记录失败的登录尝试（可选）
+        print(f"用户 {username} 登录失败，时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        return jsonify({'success': False, 'message': '用户名或密码错误'}), 401
+
+@app.route('/api/logout')
+def logout():
+    # 清除会话
+    session.clear()
+    return redirect('/login')
+
 # 静态文件路由
 @app.route('/')
+@login_required
 def index():
     return send_from_directory(current_dir, 'index.html')
 
@@ -50,6 +112,7 @@ def send_js(path):
 
 # API路由
 @app.route('/api/realtime-data')
+@login_required
 def get_realtime_data():
     try:
         # 获取偏移量和限制数量参数
@@ -81,10 +144,10 @@ def get_realtime_data():
         return jsonify(data)
         
     except Exception as e:
-        print('Error:', str(e))
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/history-data')
+@login_required
 def get_history_data():
     start_date = request.args.get('start')
     end_date = request.args.get('end')
@@ -119,6 +182,7 @@ def get_history_data():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/deepseek', methods=['POST'])
+@login_required
 def deepseek_query():
     try:
         data = request.get_json()
@@ -188,5 +252,5 @@ def deepseek_query():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    print(f"应用已启动，请访问: http://localhost:5000")
+    print(f"应用已启动，请访问: http://localhost:5000/login")
     app.run(debug=True, port=5000) 

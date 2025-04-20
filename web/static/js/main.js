@@ -229,18 +229,12 @@ async function updateRealtimeData() {
             // 如果数据少于窗口大小，说明已经到达末尾，重置offset
             if (data.length < DATA_WINDOW_SIZE) {
                 dataOffset = 0;
-                console.log('已到达数据末尾，重置offset到起始位置');
             } else {
                 // 每次只增加1，移动一个数据点
                 dataOffset += 1;
             }
 
             lastUpdateTime = new Date();
-
-            // 输出调试信息
-            console.log('当前数据偏移量:', dataOffset);
-            console.log('数据更新时间:', lastUpdateTime);
-            console.log('数据点数量:', data.length);
         }
     } catch (error) {
         console.error('获取实时数据失败:', error);
