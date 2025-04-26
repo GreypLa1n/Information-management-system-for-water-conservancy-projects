@@ -13,6 +13,8 @@ __pycache__/
 *.pyc
 *.pyo
 
+bash.exe.stackdump
+
 # 忽略虚拟环境
 .venv/
 web/.venv/
