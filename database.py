@@ -18,7 +18,7 @@ class Database:
         # 从环境变量中获取数据库连接信息
         self.db_config = {
             'host': os.getenv("DB_HOST", "localhost"),
-            'user': os.getenv("DB_USER", "sensor_user"),
+            'user': os.getenv("DB_USER", "root"),
             'password': os.getenv("DB_PASSWORD", ""),
             'database': os.getenv("DB_NAME", "reservoir_db")
         }
