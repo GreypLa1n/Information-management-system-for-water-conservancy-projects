@@ -4,6 +4,7 @@ import os
 import datetime
 import pymysql
 from dotenv import load_dotenv
+import re
 
 # 加载环境变量
 load_dotenv()
@@ -15,7 +16,7 @@ deepseek_url = os.getenv("DEEPSEEK_URL")
 def connect_db():
     return pymysql.connect(
         host = os.getenv("DB_HOST", "localhost"),
-        user = os.getenv("DB_USER", "sensor_user"),
+        user = os.getenv("DB_USER", "root"),
         password = os.getenv("DB_PASSWORD", ""),
         database = os.getenv("DB_NAME", "reservoir_db")
     )
@@ -56,14 +57,20 @@ def ask_deepseek(question):
             json = {
                 "model": "deepseek-r1:7b",
                 "prompt": question_with_context,
-                "stream": False
+                "stream": False  # False 等待大模型生成结束后一起输出，适合只提问一次的提问场景 True 会多次返回文本片段，适合多轮次的对话场景
             },
         )
 
         response.raise_for_status()
         response_data = response.json()
-        response_text = response_data.get("response", "API 未返回数据。")
-        return response_text
+        response_text = response_data.get("response", "API 未返回数据。").strip()
+
+        reasoning = re.search(r"<think(.*?)</think>>", response_text, re.DOTALL)  # 使用正则表达式分离思考和结果
+        reasoning = reasoning.group(1).strip() if reasoning else ""
+
+        answer = response_text.split("</think>")[-1].strip()
+
+        return answer
     
     except requests.exceptions.RequestException as e:
         return f"请求失败：{e}"
