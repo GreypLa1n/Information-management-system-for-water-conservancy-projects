@@ -26,12 +26,13 @@ def get_history_data():
     try:
         conn = connect_db()
         cursor = conn.cursor(pymysql.cursors.DictCursor)
-        cursor.execute("SELECT * FROM sensor_data ORDER BY timestamp DESC LIMIT 100")  # 获取最新的100条数据
+        # 返回需要的时间 温度 湿度 风力 降雨量和水位
+        cursor.execute("SELECT * FROM sensor_data ORDER BY timestamp DESC LIMIT 100")
         data = cursor.fetchall()
 
         for row in data:
             if isinstance(row["timestamp"], datetime.datetime):
-                row["timestamp"] = row["timestamp"].strftime("%Y-%m-%d %H:%M:%S")  # 格式化时间
+                row["timestamp"] = row["timestamp"].strftime("%Y-%m-%d %H:%M:%S")
 
         cursor.close()
         conn.close()

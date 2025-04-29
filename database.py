@@ -67,10 +67,10 @@ class Database:
             
             query = """
                 SELECT timestamp, COALESCE(water_level, 0), COALESCE(temperature, 0), 
-                COALESCE(humidity, 0), COALESCE(windpower, 0)
+                COALESCE(humidity, 0), COALESCE(windpower, 0), COALESCE(rains, 0)
                 FROM sensor_data 
                 WHERE water_level IS NOT NULL 
-                ORDER BY timestamp ASC
+                ORDER BY timestamp ASC LIMIT 200
             """
             
             cursor.execute(query)
@@ -82,10 +82,10 @@ class Database:
                 return None
             
             # 解析数据
-            timestamps, water_levels, temperatures, humidities, windpowers = zip(*rows)
+            timestamps, water_levels, temperatures, humidities, windpowers, rains = zip(*rows)
             
             
-            return timestamps, water_levels, temperatures, humidities, windpowers
+            return timestamps, water_levels, temperatures, humidities, windpowers, rains
             
         except pymysql.Error as e:
             logger.error(f"获取可视化数据失败: {e}")

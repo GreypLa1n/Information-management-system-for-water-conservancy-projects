@@ -10,6 +10,7 @@ import time
 import mplcursors
 from database import get_history_data
 from email_alerts import check_alert_window, send_email_alert
+from Transformer_predict import transformer_water_anomaly
 
 # 配置日志
 logger = logging.getLogger('ui_components')
@@ -560,18 +561,16 @@ class WaterLevelMonitor:
     def check_alerts(self, timestamps, water_levels):
         """监测水位是否需要发出警报"""
         global alerted_timestamps, alerted_window
-        
-        
+
         for i, water_level in enumerate(water_levels):
-            # 检查水位是否超过警戒值且未报警过
-            if water_level > self.threshold and timestamps[i] not in alerted_timestamps:
+            # 传入最近100条水位数据检测是否异常，返回True表示异常，False表示正常
+            is_anomaly = transformer_water_anomaly(i, water_levels) if i > 99 else False
+            if (water_level > self.threshold or is_anomaly) and timestamps[i] not in alerted_timestamps:
                 # 如果有之前的弹窗未关闭，先关闭
                 if alerted_window and alerted_window.winfo_exists():
                     alerted_window.destroy()
-                
                 # 记录报警时间戳，防止重复报警
                 alerted_timestamps.add(timestamps[i])
-                
                 # 创建警报弹窗
                 self._create_alert_window(timestamps[i], water_level)
                 break

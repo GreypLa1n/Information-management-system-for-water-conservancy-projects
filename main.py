@@ -127,7 +127,7 @@ class Water_Data_Visualization:
                 
                 if data:
                     # 解析数据
-                    timestamps, water_levels, temperatures, humidities, windpowers = data
+                    timestamps, water_levels, temperatures, humidities, windpowers, rains = data
                     
                     # 转换为DataFrame以便处理
                     df = pd.DataFrame({
