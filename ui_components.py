@@ -540,13 +540,13 @@ class DataPlotter:
         self.ax3.grid()
         
     def _plot_windpower(self, data):
-        """绘制风力趋势图"""
-        self.ax4.plot(data['timestamp'], data['windpower'], 
-                     label="风力 (m/s)", color="purple", alpha=0.3)
-        self.ax4.plot(data['timestamp'], data['windpower_smooth'], 
-                     label="风力 (平滑)", color="purple")
-        self.ax4.set_title("风力变化", fontsize=15)
-        self.ax4.set_ylabel("风力 (m/s)", fontsize=15)
+        """绘制降雨量趋势图"""
+        self.ax4.plot(data['timestamp'], data['rains'], 
+                     label="降雨量 (mm)", color="purple", alpha=0.3)
+        self.ax4.plot(data['timestamp'], data['rains_smooth'], 
+                     label="降雨量 (平滑)", color="purple")
+        self.ax4.set_title("降雨量变化", fontsize=15)
+        self.ax4.set_ylabel("降雨量 (mm)", fontsize=15)
         self.ax4.legend()
         self.ax4.grid()
 

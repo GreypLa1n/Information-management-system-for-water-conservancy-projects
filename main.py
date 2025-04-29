@@ -135,7 +135,8 @@ class Water_Data_Visualization:
                         "water_level": water_levels,
                         "temperature": temperatures,
                         "humidity": humidities,
-                        "windpower": windpowers
+                        "windpower": windpowers,
+                        "rains": rains
                     })
                     
                     # 获取年份
@@ -145,7 +146,7 @@ class Water_Data_Visualization:
                     df['water_level_smooth'] = df['water_level'].rolling(window=3, min_periods=1).mean()
                     df['temperature_smooth'] = df['temperature'].rolling(window=3, min_periods=1).mean()
                     df['humidity_smooth'] = df['humidity'].rolling(window=3, min_periods=1).mean()
-                    df['windpower_smooth'] = df['windpower'].rolling(window=3, min_periods=1).mean()
+                    df['rains_smooth'] = df['rains'].rolling(window=3, min_periods=1).mean()
                     
                     # 再次检查主窗口是否存在
                     if not self.root or not self.root.winfo_exists():
